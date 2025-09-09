@@ -1,0 +1,15 @@
+compounds:
+  input_paths:
+  - data/compounds/test_small.smi
+  max_compounds: 5
+debug_mode: true
+disease_terms:
+- lung cancer
+max_targets: 3
+organism: Homo sapiens
+output_dir: data/outputs/test
+scoring:
+  weights:
+    deepdta: 0.6
+    docking: 0.3
+    evidence: 0.1

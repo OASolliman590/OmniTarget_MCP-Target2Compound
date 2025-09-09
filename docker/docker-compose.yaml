@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # Redis for caching and job queues
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # KEGG MCP Server
+  kegg-mcp:
+    build:
+      context: ../services/kegg-mcp
+    container_name: kegg-mcp-server
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MCP_CONFIG_PATH=/app/config/kegg.json
+    volumes:
+      - ../configs/mcp:/app/config
+    restart: unless-stopped
+
+  # Reactome MCP Server
+  reactome-mcp:
+    build:
+      context: ../services/reactome-mcp
+    container_name: reactome-mcp-server
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # Protein Atlas MCP Server
+  proteinatlas-mcp:
+    build:
+      context: ../services/proteinatlas-mcp
+    container_name: proteinatlas-mcp-server
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # STRING MCP Server
+  string-mcp:
+    build:
+      context: ../services/string-mcp
+    container_name: string-mcp-server
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # UniProt MCP Server
+  uniprot-mcp:
+    build:
+      context: ../services/uniprot-mcp
+    container_name: uniprot-mcp-server
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # PDB MCP Server
+  pdb-mcp:
+    build:
+      context: ../services/pdb-mcp
+    container_name: pdb-mcp-server
+    ports:
+      - "3005:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # ChEMBL MCP Server
+  chembl-mcp:
+    build:
+      context: ../services/chembl-mcp
+    container_name: chembl-mcp-server
+    ports:
+      - "3006:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # Main Orchestrator Service
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.orchestrator
+    container_name: mcp-orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      # MCP Server URLs
+      - MCP_KEGG_URL=http://kegg-mcp:3000
+      - MCP_REACTOME_URL=http://reactome-mcp:3000
+      - MCP_PROTEINATLAS_URL=http://proteinatlas-mcp:3000
+      - MCP_STRING_URL=http://string-mcp:3000
+      - MCP_UNIPROT_URL=http://uniprot-mcp:3000
+      - MCP_PDB_URL=http://pdb-mcp:3000
+      - MCP_CHEMBL_URL=http://chembl-mcp:3000
+      
+      # Redis configuration
+      - REDIS_URL=redis://redis:6379
+      
+      # Application settings
+      - VINA_BINARY_PATH=/usr/local/bin/vina
+      - CACHE_DIR=/app/data/cache
+      - TEMP_DIR=/app/data/temp
+      - OUTPUT_DIR=/app/data/outputs
+      
+      # Rate limiting
+      - API_RATE_LIMIT=100
+      - MCP_REQUEST_TIMEOUT=30
+      - MCP_MAX_RETRIES=3
+      
+    volumes:
+      - ../data:/app/data
+      - ../configs:/app/configs
+      - ../third_party:/app/third_party
+    depends_on:
+      - redis
+      - kegg-mcp
+      - reactome-mcp
+      - proteinatlas-mcp
+      - string-mcp
+      - uniprot-mcp
+      - pdb-mcp
+      - chembl-mcp
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: mcp-network
