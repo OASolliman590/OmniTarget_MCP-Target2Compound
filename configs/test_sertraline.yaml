@@ -1,0 +1,42 @@
+# Test configuration for MCP Drug Discovery Pipeline
+# Using real sertraline and 1,3-diaryl pyrazole Sert conjugates
+
+# Disease and organism
+disease_terms: ["depression", "anxiety", "obsessive-compulsive disorder"]
+organism: "Homo sapiens"
+
+# PPI network configuration
+ppi:
+  min_confidence: 0.7
+  max_partners: 100
+
+# Expression filtering
+expression:
+  tissue_whitelist: ["brain", "cerebral cortex", "hippocampus", "amygdala"]
+  reliability_min: "Supported"
+
+# Structure preferences
+structures:
+  prefer_experimental: true
+  allow_alphafold: true
+
+# Compound configuration - using real compounds
+compounds:
+  input_paths:
+    - "data/compounds/sertraline_conjugates.smi"
+  max_compounds: 10  # Limit for testing
+
+# Scoring weights
+scoring:
+  weights:
+    deepdta: 0.6
+    docking: 0.3
+    evidence: 0.1
+
+# Output configuration
+output_dir: "data/outputs"
+run_name: "sertraline_test"
+
+# Advanced settings
+max_targets: 50  # Limit for testing
+parallel_jobs: 2  # Conservative for testing

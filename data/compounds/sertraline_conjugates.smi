@@ -1,0 +1,14 @@
+# Sertraline and 1,3-diaryl pyrazole Sert conjugates
+# SMILES format: SMILES compound_name
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6	sertraline
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6Cl	sertraline_chloride
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6F	sertraline_fluoride
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6Br	sertraline_bromide
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6I	sertraline_iodide
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6NO2	sertraline_nitro
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6OCH3	sertraline_methoxy
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6CH3	sertraline_methyl
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6CF3	sertraline_trifluoromethyl
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6CN	sertraline_cyano
+C1CN(CCN1)C2=CC=C(C=C2)C3=CC4=C(C=C3)C5=C(C=CC=C5)N4C6=CC=CC=C6OH	sertraline_hydroxy
+

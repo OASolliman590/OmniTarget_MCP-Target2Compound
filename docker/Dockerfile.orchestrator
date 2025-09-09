@@ -1,0 +1,46 @@
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    curl \
+    wget \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install AutoDock Vina
+RUN wget https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.5/vina_1.2.5_linux_x86_64 \
+    && chmod +x vina_1.2.5_linux_x86_64 \
+    && mv vina_1.2.5_linux_x86_64 /usr/local/bin/vina
+
+# Install Poetry for dependency management
+RUN pip install poetry
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python dependencies
+COPY orchestrator/pyproject.toml orchestrator/poetry.lock* ./
+
+# Configure poetry and install dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-dev
+
+# Copy application code
+COPY orchestrator/ ./orchestrator/
+COPY configs/ ./configs/
+COPY data/ ./data/
+
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Expose FastAPI port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Default command
+CMD ["uvicorn", "orchestrator.api:app", "--host", "0.0.0.0", "--port", "8000"]

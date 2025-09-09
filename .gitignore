@@ -1,0 +1,113 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+data/outputs/
+data/cache/
+data/temp/
+logs/
+*.log
+
+# Docker
+.docker/
+
+# Model weights and large files
+*.h5
+*.pkl
+*.pt
+*.pth
+*.model
+
+# Test outputs
+test_outputs/
+pytest_cache/
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Data files (except examples)
+data/compounds/*.smi
+data/compounds/*.sdf
+data/compounds/*.mol
+!data/compounds/.gitkeep
+!data/compounds/example.smi
+!data/compounds/test_small.smi
+!data/compounds/sertraline_conjugates.smi
+
+# Temporary files
+*.tmp
+*.temp
+temp_*
+
+# Configuration overrides
+configs/run.yaml
+configs/local.yaml
+
+# Third party submodules (managed by git submodule)
+third_party/*/
+services/*/
+
+# GitHub specific
+.github/workflows/
+.github/ISSUE_TEMPLATE/
+.github/PULL_REQUEST_TEMPLATE.md
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Conda environment info
+.conda_env_info
+activate_env.sh
+
+# Test results
+test_results.json

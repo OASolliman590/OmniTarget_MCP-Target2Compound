@@ -1,0 +1,85 @@
+# Example configuration for MCP Drug Discovery Pipeline
+# Copy this file and modify for your specific use case
+
+# Disease terms for target discovery
+disease_terms: 
+  - "lung cancer"
+  - "NSCLC"  # Non-small cell lung cancer
+
+# Target organism
+organism: "Homo sapiens"
+
+# Protein-protein interaction settings
+ppi:
+  min_confidence: 0.7          # Minimum STRING confidence score (0.0-1.0)
+  max_partners: 200            # Maximum number of protein partners per target
+  include_experimental: true   # Include experimentally determined interactions
+  include_predicted: true      # Include computationally predicted interactions
+
+# Gene/protein expression filtering
+expression:
+  tissue_whitelist:            # Only include targets expressed in these tissues
+    - "lung"
+    - "bronchus"
+  tissue_blacklist: []         # Exclude targets expressed in these tissues
+  reliability_min: "Supported" # Minimum reliability: Approved, Supported, Uncertain, Not supported
+  expression_level_min: null   # Minimum expression level (if available)
+
+# Protein structure requirements
+structures:
+  prefer_experimental: true    # Prefer PDB experimental structures
+  allow_alphafold: true        # Allow AlphaFold predicted structures
+  min_resolution: null         # Minimum resolution for experimental structures (Angstroms)
+  max_resolution: 3.0          # Maximum resolution for experimental structures
+  require_structure: false     # Skip targets without available structures
+
+# Compound input configuration
+compounds:
+  input_paths:
+    - "data/compounds/drug_repurposing_set.smi"
+    - "data/compounds/natural_products.smi"
+  max_compounds: 1000          # Maximum number of compounds to process
+  filter_duplicates: true      # Remove duplicate compounds
+  min_molecular_weight: 150.0  # Minimum molecular weight filter
+  max_molecular_weight: 800.0  # Maximum molecular weight filter
+
+# Scoring and ranking configuration
+scoring:
+  weights:
+    deepdta: 0.6              # Weight for DeepDTA affinity predictions
+    docking: 0.3              # Weight for molecular docking scores
+    evidence: 0.1             # Weight for experimental evidence
+  normalize_scores: true      # Z-score normalize before combining
+  top_n_results: 100          # Number of top results to return
+  min_combined_score: null    # Minimum combined score threshold
+
+# Output settings
+output_dir: "data/outputs"
+run_name: "lung_cancer_study_v1"
+
+# Advanced settings
+max_targets: 50               # Maximum number of targets to process
+parallel_jobs: 4              # Number of parallel jobs for CPU tasks
+cache_results: true           # Cache intermediate results
+
+# Development and debugging
+debug_mode: false             # Enable debug logging
+dry_run: false                # Validate configuration without running
+
+# Example for different use cases:
+
+# High-throughput screening
+# max_compounds: 10000
+# parallel_jobs: 8
+# scoring.weights.deepdta: 0.8
+# scoring.weights.docking: 0.2
+
+# Structure-focused study
+# structures.require_structure: true
+# scoring.weights.docking: 0.7
+# scoring.weights.deepdta: 0.3
+
+# Evidence-based validation
+# scoring.weights.evidence: 0.5
+# scoring.weights.deepdta: 0.3
+# scoring.weights.docking: 0.2
