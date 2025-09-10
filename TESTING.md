@@ -7,8 +7,7 @@ This guide covers testing strategies for all components of the drug discovery pi
 ### ✅ **Completed Tests**
 - **Environment Setup**: Conda environment with Python 3.11 and all dependencies
 - **AutoDock Vina**: Successfully built from source and tested with real compounds
-- **DeepDTA**: Repository cloned, adapter tested with real sertraline compounds
-- **ML Adapters**: GeminiMol, DeepDTA, Vina, Ouroboros all working with real data
+- **ML Adapters**: GeminiMol, Vina, Ouroboros working with real data
 - **Real Compounds**: 11 sertraline compounds loaded and validated
 - **Scoring System**: Normalization and fusion tested with realistic compound data
 - **Configuration**: Test config validated for sertraline compounds
@@ -65,11 +64,12 @@ compounds:
   input_paths: ["data/compounds/test_small.smi"]
   max_compounds: 3
 max_targets: 2
-scoring:
-  weights:
-    deepdta: 0.6
-    docking: 0.3
-    evidence: 0.1
+    scoring:
+      weights:
+        similarity: 0.5
+        pharmacophore: 0.2
+        docking: 0.1
+        evidence: 0.2
 output_dir: "data/outputs/test"
 debug_mode: true
 EOF
@@ -159,20 +159,20 @@ asyncio.run(test_all_clients())
 
 ## 3. 🤖 ML Adapter Testing
 
-### Test DeepDTA Adapter
+### Test GeminiMol Adapter
 
 ```bash
-# Test DeepDTA setup and prediction
+# Test similarity adapter setup
 python -c "
 import asyncio
-from orchestrator.adapters import DeepDTAAdapter
+from orchestrator.adapters import GeminiMolAdapter
 
-async def test_deepdta():
-    adapter = DeepDTAAdapter()
+async def test_geminimol():
+    adapter = GeminiMolAdapter()
     
     # Test setup
     setup_ok = await adapter.setup()
-    print(f'DeepDTA Setup: {"✓" if setup_ok else "✗"}')
+    print(f'GeminiMol Setup: {"✓" if setup_ok else "✗"}')
     
     if setup_ok:
         # Test prediction
@@ -183,7 +183,7 @@ async def test_deepdta():
         print(f'Prediction: {score.predicted_affinity:.3f}')
         print(f'Confidence: {score.confidence:.3f}')
     
-asyncio.run(test_deepdta())
+asyncio.run(test_geminimol())
 "
 ```
 
@@ -327,14 +327,14 @@ print("Rank normalized:", [f"{x:.3f}" for x in rank_normalized])
 # Test score combination
 from orchestrator.scoring import ScoreFusion
 
-weights = {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}
+weights = {"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2}
 fusion = ScoreFusion(weights)
 
 # Mock score data
 score_data = [
-    {"pair_id": "comp1-targ1", "deepdta_score": 8.5, "docking_score": -7.2, "evidence_score": 6.0},
-    {"pair_id": "comp1-targ2", "deepdta_score": 7.8, "docking_score": -8.1, "evidence_score": 5.5},
-    {"pair_id": "comp2-targ1", "deepdta_score": 9.1, "docking_score": -6.8, "evidence_score": 7.2}
+    {"pair_id": "comp1-targ1", "docking_score": -7.2, "evidence_score": 6.0},
+    {"pair_id": "comp1-targ2", "docking_score": -8.1, "evidence_score": 5.5},
+    {"pair_id": "comp2-targ1", "docking_score": -6.8, "evidence_score": 7.2}
 ]
 
 combined = fusion.combine_scores(score_data)
@@ -364,7 +364,7 @@ curl -X POST http://localhost:8000/validate \
     "config": {
       "disease_terms": ["lung cancer"],
       "compounds": {"input_paths": ["data/compounds/test_small.smi"]},
-      "scoring": {"weights": {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}}
+      "scoring": {"weights": {"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2}}
     },
     "check_files": true
   }' | jq '.'
@@ -377,7 +377,7 @@ RUN_ID=$(curl -X POST http://localhost:8000/runs \
       "disease_terms": ["lung cancer"],
       "compounds": {"input_paths": ["data/compounds/test_small.smi"]},
       "max_targets": 2,
-      "scoring": {"weights": {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}},
+      "scoring": {"weights": {"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2}},
       "output_dir": "data/outputs/test"
     },
     "run_name": "api_test"
@@ -479,7 +479,7 @@ monitor_memory()
 python -c "
 import asyncio
 from orchestrator.mcp_clients import UniProtClient
-from orchestrator.adapters import DeepDTAAdapter
+from orchestrator.adapters import GeminiMolAdapter
 
 async def test_data_flow():
     # Get protein sequence from UniProt
@@ -490,7 +490,7 @@ async def test_data_flow():
         sequence = proteins[0].get('sequence', 'MVLSPADKTNVKAAW')
         print(f'Retrieved sequence length: {len(sequence)}')
         
-        # Use sequence with DeepDTA
+        // Sequence-based predictor removed
         deepdta = DeepDTAAdapter()
         await deepdta.setup()
         
@@ -515,7 +515,7 @@ compounds:
   input_paths: ["nonexistent_file.smi"]  # Invalid: missing file
 scoring:
   weights:
-    deepdta: 0.5
+    similarity: 0.5
     docking: 0.3  # Invalid: weights don't sum to 1.0
 EOF
 

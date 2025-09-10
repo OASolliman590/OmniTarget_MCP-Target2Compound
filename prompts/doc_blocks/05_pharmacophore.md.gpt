@@ -1,0 +1,2 @@
+Explain RDKit FeatureFactory-based pharmacophore features and how overlap is computed against comparator ligands using ETKDG conformers. Note the config gate to disable PH4.
+

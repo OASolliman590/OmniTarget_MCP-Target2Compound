@@ -1,0 +1,15 @@
+tasks:
+  - id: refresh_docs
+    description: "Regenerate docs from prompt blocks and code docstrings"
+    inputs:
+      - prompts/doc_blocks/01_mcp_role.md.gpt
+      - prompts/doc_blocks/02_target_prediction_nondocking.md.gpt
+      - prompts/doc_blocks/03_comparators_geminimol.md.gpt
+      # Sequence-based predictor doc removed
+      - prompts/doc_blocks/05_pharmacophore.md.gpt
+      - prompts/doc_blocks/06_provenance.md.gpt
+    outputs:
+      - docs/Documentation.md
+      - docs/Methods.md
+      - docs/Data-Sources.md
+      - docs/Validation.md

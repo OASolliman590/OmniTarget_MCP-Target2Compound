@@ -7,7 +7,7 @@ This guide covers different installation methods for the MCP Drug Discovery Pipe
 ### ✅ **Successfully Installed**
 - **Conda Environment**: `mcp-drug-discovery` with Python 3.11
 - **AutoDock Vina**: Built from source (v1.2.7-20-g93cdc3d-mod)
-- **DeepDTA**: Repository cloned and adapter configured
+ 
 - **Core Dependencies**: RDKit, FastAPI, Pydantic, NumPy, Pandas, etc.
 - **Real Compounds**: 11 sertraline compounds ready for testing
 - **MCP Services**: All 6 services running and responding correctly
@@ -15,7 +15,7 @@ This guide covers different installation methods for the MCP Drug Discovery Pipe
 
 ### 🔧 **Technical Notes**
 - Vina binary: `vina_custom` (available in PATH)
-- DeepDTA: Using placeholder predictions (real model integration pending)
+ 
 - NumPy 2.x compatibility warnings with RDKit (non-blocking)
 - MCP Services: All operational with live data integration
 
@@ -57,12 +57,7 @@ conda activate mcp-drug-discovery
 # Built with Boost libraries from conda-forge
 ```
 
-**DeepDTA**
-```bash
-# DeepDTA repository is already cloned in third_party/DeepDTA/
-# Adapter is configured and working with placeholder predictions
-# Ready for real model integration when needed
-```
+ 
 
 # Verify installation
 python -c "import orchestrator; print('✅ Installation successful')"
@@ -168,7 +163,7 @@ conda activate mcp-drug-discovery
 python -c "
 from orchestrator.pipeline import DrugDiscoveryPipeline
 from orchestrator.mcp_clients import KEGGClient
-from orchestrator.adapters import DeepDTAAdapter
+    
 print('✅ All core components imported successfully')
 "
 ```
@@ -180,7 +175,7 @@ python scripts/test_functionality.py
 
 # Test specific components
 python scripts/test_component.py mcp kegg
-python scripts/test_component.py adapter deepdta
+    
 ```
 
 ## 🐛 Troubleshooting

@@ -46,8 +46,10 @@ compounds:
 # Scoring and ranking configuration
 scoring:
   weights:
-    deepdta: 0.6              # Weight for DeepDTA affinity predictions
-    docking: 0.3              # Weight for molecular docking scores
+    similarity: 0.5           # Similarity evidence
+    pharmacophore: 0.2        # Pharmacophore overlap
+    docking: 0.1              # Docking (optional; off by default)
+    evidence: 0.2             # Comparator evidence strength
     evidence: 0.1             # Weight for experimental evidence
   normalize_scores: true      # Z-score normalize before combining
   top_n_results: 100          # Number of top results to return
@@ -71,15 +73,15 @@ dry_run: false                # Validate configuration without running
 # High-throughput screening
 # max_compounds: 10000
 # parallel_jobs: 8
-# scoring.weights.deepdta: 0.8
-# scoring.weights.docking: 0.2
+# scoring.weights.similarity: 0.8
+# scoring.weights.pharmacophore: 0.2
 
 # Structure-focused study
 # structures.require_structure: true
 # scoring.weights.docking: 0.7
-# scoring.weights.deepdta: 0.3
+# scoring.weights.evidence: 0.3
 
 # Evidence-based validation
 # scoring.weights.evidence: 0.5
-# scoring.weights.deepdta: 0.3
+# scoring.weights.similarity: 0.3
 # scoring.weights.docking: 0.2

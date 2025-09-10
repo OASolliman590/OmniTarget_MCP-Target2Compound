@@ -30,9 +30,10 @@ class RunRequest(BaseModel):
                     },
                     "scoring": {
                         "weights": {
-                            "deepdta": 0.6,
-                            "docking": 0.3,
-                            "evidence": 0.1
+                            "similarity": 0.5,
+                            "pharmacophore": 0.2,
+                            "docking": 0.1,
+                            "evidence": 0.2
                         }
                     }
                 },
@@ -87,7 +88,7 @@ class StatusResponse(BaseModel):
             "example": {
                 "run_id": "run_20240115_143022_abc123",
                 "status": "running",
-                "current_stage": "deepdta_scoring",
+                "current_stage": "feature_generation",
                 "progress_percent": 65.5,
                 "created_at": "2024-01-15T14:30:22Z",
                 "started_at": "2024-01-15T14:30:25Z",
@@ -176,11 +177,11 @@ class HealthResponse(BaseModel):
             "example": {
                 "status": "healthy",
                 "timestamp": "2024-01-15T14:30:22Z",
-                "version": "0.1.0",
+                "version": "0.2.1",
                 "services": {
                     "kegg-mcp": True,
                     "reactome-mcp": True,
-                    "deepdta": True
+                    "chembl-mcp": True
                 },
                 "database": True,
                 "storage": True,

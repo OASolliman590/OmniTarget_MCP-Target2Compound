@@ -132,8 +132,8 @@ try:
     from orchestrator.mcp_clients import KEGGClient
     print('✅ MCP clients imported')
     
-    from orchestrator.adapters import DeepDTAAdapter
-    print('✅ ML adapters imported')
+    from orchestrator.adapters import GeminiMolAdapter, VinaAdapter, OuroborosAdapter
+    print('✅ ML adapters imported (GeminiMol, Vina, Ouroboros)')
     
     print('🎉 All orchestrator components imported successfully!')
     

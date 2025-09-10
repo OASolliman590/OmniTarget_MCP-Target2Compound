@@ -1,0 +1,2 @@
+You are helping maintain the OmniTarget MCP-Target2Compound orchestrator.
+Summarize the orchestrator role: non-docking by default, comparator-driven, with optional ML (GeminiMol, QSAR) and RDKit pharmacophore. Docking is gated and off by default.

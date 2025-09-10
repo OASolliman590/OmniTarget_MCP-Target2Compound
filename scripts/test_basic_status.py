@@ -97,23 +97,13 @@ def test_basic_status():
         print(f"❌ Vina test error: {e}")
         return False
     
-    # Test 5: DeepDTA Repository
-    print("\n🧠 Test 5: DeepDTA Repository")
+    # Test 5: Optional structure prep (not enforced)
+    print("\n🧠 Test 5: Optional Structure Prep Tools")
     try:
-        deepdta_path = Path('third_party/DeepDTA')
-        if deepdta_path.exists():
-            print(f"✅ DeepDTA repository exists: {deepdta_path}")
-            source_path = deepdta_path / 'source'
-            if source_path.exists():
-                print("✅ DeepDTA source directory found")
-            else:
-                print("⚠️ DeepDTA source directory not found")
-        else:
-            print(f"❌ DeepDTA repository not found: {deepdta_path}")
-            return False
+        obabel = shutil.which('obabel')
+        print(f"{'✅' if obabel else '⚠️'} Open Babel: {obabel or 'not found'}")
     except Exception as e:
-        print(f"❌ DeepDTA test error: {e}")
-        return False
+        print(f"⚠️ Open Babel check error: {e}")
     
     # Test 6: Docker
     print("\n🐳 Test 6: Docker")
@@ -149,7 +139,7 @@ def test_basic_status():
     print("✅ Configuration: WORKING")
     print("✅ Compounds: WORKING")
     print("✅ Vina binary: WORKING")
-    print("✅ DeepDTA repository: WORKING")
+    print("✅ Optional tools: CHECKED")
     print("✅ Docker: WORKING")
     print("✅ Docker compose: WORKING")
     print("\n🎯 Status: READY FOR MCP SERVER INTEGRATION")

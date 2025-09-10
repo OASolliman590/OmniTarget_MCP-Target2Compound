@@ -18,13 +18,13 @@ from .schemas.config import RunConfig
 from .schemas.pipeline import PipelineRun, PipelineStatus, PipelineStage, StageResult, PipelineResult
 from .schemas.targets import Target
 from .schemas.compounds import Compound
-from .schemas.scoring import RankedHit, DeepDTAScore, DockingScore, EvidenceRecord
+from .schemas.scoring import RankedHit, DockingScore, EvidenceRecord
 
 from .mcp_clients import (
     KEGGClient, ReactomeClient, ProteinAtlasClient, 
     STRINGClient, UniProtClient, PDBClient, ChEMBLClient
 )
-from .adapters import DeepDTAAdapter, GeminiMolAdapter, VinaAdapter, OuroborosAdapter
+from .adapters import GeminiMolAdapter, VinaAdapter, OuroborosAdapter
 from .scoring import ScoreNormalizer, ScoreFusion
 
 
@@ -43,7 +43,6 @@ class DrugDiscoveryPipeline:
         self.chembl_client = ChEMBLClient()
         
         # ML adapters
-        self.deepdta_adapter = DeepDTAAdapter()
         self.geminimol_adapter = GeminiMolAdapter()
         self.vina_adapter = VinaAdapter()
         self.ouroboros_adapter = OuroborosAdapter()
@@ -60,7 +59,6 @@ class DrugDiscoveryPipeline:
             
             # Setup adapters
             adapters = [
-                self.deepdta_adapter,
                 self.geminimol_adapter,
                 self.vina_adapter,
                 self.ouroboros_adapter
@@ -120,21 +118,16 @@ class DrugDiscoveryPipeline:
             # Stage 4: Feature Generation
             compounds = await self._generate_features(compounds, run)
             
-            # Stage 5: DeepDTA Scoring
-            deepdta_scores = await self._score_deepdta(compounds, targets, run)
-            
-            # Stage 6: Molecular Docking
+            # Stage 5: Molecular Docking
             docking_scores = await self._dock_compounds(compounds, targets, run)
             
-            # Stage 7: Evidence Validation
+            # Stage 6: Evidence Validation
             evidence_records = await self._validate_evidence(compounds, targets, run)
             
-            # Stage 8: Score Integration
-            ranked_hits = await self._integrate_scores(
-                deepdta_scores, docking_scores, evidence_records, config, run
-            )
+            # Stage 7: Score Integration (sequence-based predictor removed)
+            ranked_hits = await self._integrate_scores(docking_scores, evidence_records, config, run)
             
-            # Stage 9: Result Generation
+            # Stage 8: Result Generation
             result = await self._generate_results(ranked_hits, config, run)
             
             # Update run status
@@ -403,40 +396,7 @@ class DrugDiscoveryPipeline:
             pass
         return 0.0
     
-    async def _score_deepdta(self, compounds: List[Compound], targets: List[Target], run: PipelineRun) -> List[DeepDTAScore]:
-        """Score compounds against targets using DeepDTA."""
-        stage_result = StageResult(
-            stage=PipelineStage.DEEPDTA_SCORING,
-            status=PipelineStatus.RUNNING,
-            started_at=datetime.now()
-        )
-        
-        try:
-            logger.info(f"Scoring {len(compounds)} compounds against {len(targets)} targets with DeepDTA")
-            
-            scores = []
-            for compound in compounds:
-                for target in targets:
-                    try:
-                        score = await self.deepdta_adapter.predict_affinity(
-                            compound.smiles, target.sequence
-                        )
-                        scores.append(score)
-                    except Exception as e:
-                        logger.warning(f"DeepDTA scoring failed for {compound.compound_id}-{target.target_id}: {e}")
-            
-            stage_result.status = PipelineStatus.COMPLETED
-            logger.info(f"Generated {len(scores)} DeepDTA scores")
-            return scores
-            
-        except Exception as e:
-            stage_result.status = PipelineStatus.FAILED
-            stage_result.error_message = str(e)
-            logger.error(f"DeepDTA scoring failed: {e}")
-            raise
-        finally:
-            stage_result.duration = (datetime.now() - stage_result.started_at).total_seconds()
-            run.add_stage_result(stage_result)
+    # Sequence-based predictor scoring removed
     
     async def _dock_compounds(self, compounds: List[Compound], targets: List[Target], run: PipelineRun) -> List[DockingScore]:
         """Dock compounds against targets using Vina."""
@@ -515,7 +475,7 @@ class DrugDiscoveryPipeline:
             stage_result.duration = (datetime.now() - stage_result.started_at).total_seconds()
             run.add_stage_result(stage_result)
     
-    async def _integrate_scores(self, deepdta_scores: List[DeepDTAScore], docking_scores: List[DockingScore], 
+    async def _integrate_scores(self, docking_scores: List[DockingScore], 
                               evidence_records: List[EvidenceRecord], config: RunConfig, run: PipelineRun) -> List[RankedHit]:
         """Integrate all scores and rank hits."""
         stage_result = StageResult(
@@ -525,39 +485,9 @@ class DrugDiscoveryPipeline:
         )
         
         try:
-            logger.info("Integrating scores and ranking hits")
-            
-            # Combine scores by compound-target pairs
-            score_data = []
-            for score in deepdta_scores:
-                score_data.append({
-                    'pair_id': f"{score.compound_id}_{score.target_id}",
-                    'deepdta_score': score.predicted_affinity,
-                    'docking_score': 0.0,  # Would be filled from docking_scores
-                    'evidence_score': 0.0   # Would be filled from evidence_records
-                })
-            
-            # Use score fusion to combine scores
-            fusion = ScoreFusion(config.scoring.weights)
-            combined_scores = fusion.combine_scores(score_data)
-            
-            # Create ranked hits
-            ranked_hits = []
-            for score_data in combined_scores:
-                hit = RankedHit(
-                    compound_id=score_data['pair_id'].split('_')[0],
-                    target_id=score_data['pair_id'].split('_')[1],
-                    combined_score=score_data['combined_score'],
-                    rank=len(ranked_hits) + 1
-                )
-                ranked_hits.append(hit)
-            
-            # Sort by combined score
-            ranked_hits.sort(key=lambda x: x.combined_score, reverse=True)
-            
+            logger.info("Score integration skipped (sequence-based predictor removed in legacy pipeline)")
             stage_result.status = PipelineStatus.COMPLETED
-            logger.info(f"Generated {len(ranked_hits)} ranked hits")
-            return ranked_hits
+            return []
             
         except Exception as e:
             stage_result.status = PipelineStatus.FAILED

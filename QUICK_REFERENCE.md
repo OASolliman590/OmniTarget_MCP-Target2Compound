@@ -10,8 +10,8 @@ All core components are working with real data and all MCP services are operatio
 |-----------|--------|---------|
 | **Environment** | ✅ Complete | Conda env with Python 3.11 |
 | **AutoDock Vina** | ✅ Complete | Built from source (v1.2.7) |
-| **DeepDTA** | ✅ Complete | Placeholder predictions working |
-| **ML Adapters** | ✅ Complete | All adapters tested with real data |
+| **Sequence Predictor** | ❌ Removed | Removed from pipeline |
+| **ML Adapters** | ✅ Complete | GeminiMol, Vina, Ouroboros tested |
 | **Real Compounds** | ✅ Complete | 11 sertraline compounds loaded |
 | **Scoring System** | ✅ Complete | Normalization & fusion working |
 | **Configuration** | ✅ Complete | Test config validated |
@@ -41,7 +41,7 @@ All core components are working with real data and all MCP services are operatio
 
 3. **Run Full Pipeline**
    ```bash
-   python -m orchestrator.cli run configs/test_sertraline.yaml
+python -m orchestrator.cli run_nd configs/test_sertraline.yaml
    ```
 
 4. **Run Functionality Tests**
@@ -54,7 +54,7 @@ All core components are working with real data and all MCP services are operatio
 - **Compounds**: `data/compounds/sertraline_conjugates.smi` (11 real compounds)
 - **Config**: `configs/test_sertraline.yaml` (depression, anxiety, OCD)
 - **Vina Binary**: `vina_custom` (in PATH)
-- **DeepDTA**: `third_party/DeepDTA/` (placeholder mode)
+ 
 
 ## 🔧 **Quick Commands**
 
@@ -76,7 +76,7 @@ python -m orchestrator.cli run --config configs/test_sertraline.yaml
 ## 📊 **Test Results**
 
 - ✅ **GeminiMol**: 1024-dimensional embeddings generated
-- ✅ **DeepDTA**: Placeholder predictions working (4.395 affinity for sertraline)
+ 
 - ✅ **Vina**: Binary found and configured
 - ✅ **Scoring**: Z-score and fusion working correctly
 - ✅ **Compounds**: 11 real sertraline compounds loaded

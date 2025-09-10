@@ -5,8 +5,7 @@
 ### ✅ **Completed Tests**
 - **Environment Setup**: Conda environment with Python 3.11 and all dependencies
 - **AutoDock Vina**: Successfully built from source (v1.2.7-20-g93cdc3d-mod) and tested
-- **DeepDTA**: Repository cloned, adapter tested with real sertraline compounds
-- **ML Adapters**: GeminiMol, DeepDTA, Vina, Ouroboros all working with real data
+- **ML Adapters**: GeminiMol, Vina, Ouroboros working with real data
 - **Real Compounds**: 11 sertraline compounds loaded and validated
 - **Scoring System**: Normalization and fusion tested with realistic compound data
 - **Configuration**: Test config validated for sertraline compounds
@@ -33,7 +32,7 @@ Here are the different ways to test each component of the MCP Drug Discovery Pip
 python3 -c "
 from orchestrator.pipeline import DrugDiscoveryPipeline
 from orchestrator.mcp_clients import KEGGClient
-from orchestrator.adapters import DeepDTAAdapter
+ 
 print('✅ All imports successful')
 "
 ```
@@ -79,7 +78,7 @@ docker compose logs kegg-mcp
 **Individual Adapter Testing:**
 ```bash
 # Test ML adapters individually
-python scripts/test_component.py adapter deepdta
+python scripts/test_component.py adapter geminimol
 python scripts/test_component.py adapter geminimol
 python scripts/test_component.py adapter vina
 python scripts/test_component.py adapter ouroboros
@@ -88,10 +87,11 @@ python scripts/test_component.py adapter ouroboros
 **Test Adapter Setup:**
 ```python
 import asyncio
-from orchestrator.adapters import DeepDTAAdapter
+ 
 
-async def test_deepdta():
-    adapter = DeepDTAAdapter()
+async def test_similarity():
+    from orchestrator.adapters import GeminiMolAdapter
+    adapter = GeminiMolAdapter()
     setup_ok = await adapter.setup()
     print(f"Setup: {'✅' if setup_ok else '❌'}")
     
@@ -99,7 +99,7 @@ async def test_deepdta():
         score = await adapter.predict_affinity("CCO", "MVLSPADKTNVKAAW")
         print(f"Prediction: {score.predicted_affinity:.3f}")
 
-asyncio.run(test_deepdta())
+asyncio.run(test_similarity())
 ```
 
 ### 4. 🔄 Pipeline Stage Testing
@@ -162,10 +162,10 @@ print(f"Original: {scores}")
 print(f"Normalized: {[f'{x:.2f}' for x in normalized]}")
 
 # Test fusion
-weights = {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}
+weights = {"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2}
 fusion = ScoreFusion(weights)
 score_data = [
-    {"pair_id": "test", "deepdta_score": 8.5, "docking_score": -7.2, "evidence_score": 6.0}
+    {"pair_id": "test", "docking_score": -7.2, "evidence_score": 6.0}
 ]
 combined = fusion.combine_scores(score_data)
 print(f"Combined score: {combined[0]['combined_score']:.3f}")
@@ -184,7 +184,7 @@ from orchestrator.schemas.config import RunConfig
 config = RunConfig(
     disease_terms=['lung cancer'],
     compounds={'input_paths': ['test.smi']},
-    scoring={'weights': {'deepdta': 0.6, 'docking': 0.3, 'evidence': 0.1}}
+    scoring={'weights': {'similarity': 0.5, 'pharmacophore': 0.2, 'docking': 0.1, 'evidence': 0.2}}
 )
 print('✅ Configuration valid')
 "
@@ -207,7 +207,7 @@ curl -X POST http://localhost:8000/validate \
     "config": {
       "disease_terms": ["lung cancer"],
       "compounds": {"input_paths": ["data/compounds/test.smi"]},
-      "scoring": {"weights": {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}}
+      "scoring": {"weights": {"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2}}
     }
   }' | jq '.'
 
@@ -255,7 +255,7 @@ compounds:
   max_compounds: 2
 max_targets: 2
 scoring:
-  weights: {deepdta: 0.6, docking: 0.3, evidence: 0.1}
+  weights: {similarity: 0.5, pharmacophore: 0.2, docking: 0.1, evidence: 0.2}
 output_dir: "data/outputs/test"
 EOF
 

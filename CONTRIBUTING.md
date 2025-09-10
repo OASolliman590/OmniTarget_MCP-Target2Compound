@@ -262,7 +262,7 @@ docker compose -f docker/docker-compose.yaml down
 ## 🎯 Areas for Contribution
 
 ### High Priority
-- Real DeepDTA model integration
+- Optional: sequence-based predictor integration (non-default)
 - Additional MCP server implementations
 - Performance optimizations
 - Extended test coverage

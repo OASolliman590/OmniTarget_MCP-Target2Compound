@@ -1,0 +1,2 @@
+Detail how ChEMBL comparators are selected (pChEMBL threshold, assay consistency) and how similarity features are computed using GeminiMol cosine (when available) and RDKit Morgan Tanimoto as a cross-check.
+

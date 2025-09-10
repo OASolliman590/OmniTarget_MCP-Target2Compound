@@ -19,17 +19,12 @@ The MCP Drug Discovery Pipeline has been successfully completed and is fully fun
 - **Location**: `$CONDA_PREFIX/bin/vina_custom`
 - **Testing**: Adapter tested and working with real compounds
 
-### 🧠 **DeepDTA**
-- **Status**: ✅ **COMPLETE** (Placeholder Mode)
-- **Details**: Repository cloned, adapter configured
-- **Location**: `third_party/DeepDTA/`
-- **Mode**: Placeholder predictions (ready for real model integration)
-- **Testing**: Working with real sertraline compounds
+### 🧠 **Sequence-based predictor**
+- Removed from the default pipeline; consider future gated integration.
 
 ### 🤖 **ML Adapters**
 - **Status**: ✅ **ALL WORKING**
 - **GeminiMol**: ✅ Working (1024-dimensional embeddings)
-- **DeepDTA**: ✅ Working (placeholder predictions)
 - **Vina**: ✅ Working (binary found and configured)
 - **Ouroboros**: ✅ Working (representation adapter)
 
@@ -85,7 +80,6 @@ The MCP Drug Discovery Pipeline has been successfully completed and is fully fun
 
 ### **File Locations**
 - **Vina Binary**: `/Users/omara.soliman/opt/miniconda3/envs/mcp-drug-discovery/bin/vina_custom`
-- **DeepDTA**: `third_party/DeepDTA/`
 - **Compounds**: `data/compounds/sertraline_conjugates.smi`
 - **Config**: `configs/test_sertraline.yaml`
 
@@ -93,7 +87,6 @@ The MCP Drug Discovery Pipeline has been successfully completed and is fully fun
 - **Docker Credentials**: ✅ **RESOLVED** - Docker credential helper issue has been fixed
   - **Fix Applied**: Removed `"credsStore": "desktop"` from `~/.docker/config.json`
   - **Status**: All MCP services are now running successfully
-- **DeepDTA**: Using placeholder predictions (real model integration pending)
 - **MCP Services**: ✅ **FULLY OPERATIONAL** - All services running and responding
 
 ## 🚀 **Usage Instructions**
@@ -146,7 +139,7 @@ echo "CCO ethanol" > data/compounds/my_compounds.smi
 |-----------|--------|----------------|
 | Environment | ✅ Complete | Conda setup, dependencies |
 | AutoDock Vina | ✅ Complete | Binary build, adapter test |
-| DeepDTA | ✅ Complete | Repository clone, adapter test |
+| Sequence Predictor | ❌ Removed | Not included |
 | ML Adapters | ✅ Complete | All adapters tested |
 | Real Compounds | ✅ Complete | 11 compounds loaded |
 | Scoring System | ✅ Complete | Normalization, fusion |

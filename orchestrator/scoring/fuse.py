@@ -31,26 +31,21 @@ class ScoreFusion:
         """
         try:
             # Extract individual score types
-            deepdta_scores = []
             docking_scores = []
             evidence_scores = []
             
             for record in score_data:
-                deepdta_scores.append(record.get("deepdta_score", 0.0))
                 docking_scores.append(record.get("docking_score", 0.0))
                 evidence_scores.append(record.get("evidence_score", 0.0))
             
             # Normalize scores
             if normalization_method == "zscore":
-                deepdta_norm = self.normalizer.z_score_normalize(deepdta_scores)
                 docking_norm = self.normalizer.z_score_normalize(docking_scores)
                 evidence_norm = self.normalizer.z_score_normalize(evidence_scores)
             elif normalization_method == "minmax":
-                deepdta_norm = self.normalizer.min_max_normalize(deepdta_scores)
                 docking_norm = self.normalizer.min_max_normalize(docking_scores)
                 evidence_norm = self.normalizer.min_max_normalize(evidence_scores)
             else:
-                deepdta_norm = deepdta_scores
                 docking_norm = docking_scores
                 evidence_norm = evidence_scores
             
@@ -58,7 +53,6 @@ class ScoreFusion:
             combined_scores = []
             for i, record in enumerate(score_data):
                 combined_score = (
-                    self.weights.get("deepdta", 0) * deepdta_norm[i] +
                     self.weights.get("docking", 0) * docking_norm[i] +
                     self.weights.get("evidence", 0) * evidence_norm[i]
                 )
@@ -66,7 +60,6 @@ class ScoreFusion:
                 record_with_combined = record.copy()
                 record_with_combined.update({
                     "combined_score": combined_score,
-                    "deepdta_normalized": deepdta_norm[i],
                     "docking_normalized": docking_norm[i],
                     "evidence_normalized": evidence_norm[i]
                 })

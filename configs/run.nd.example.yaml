@@ -1,0 +1,60 @@
+chembl:
+  min_pchembl: 6.0
+  min_comparators: 5
+  require_assay_consistency: true
+
+similarity:
+  top_k: 50
+  min_cosine_geminimol: 0.60
+  min_tanimoto_morgan: 0.40
+
+pharmacophore:
+  method: "rdkit_features"  # set to "disabled" to turn off
+  min_ph4_support: 0.60
+
+scoring:
+  weights:
+    similarity: 0.40
+    qsar: 0.00
+    pharmacophore: 0.20
+    docking: 0.10
+    evidence: 0.30
+
+ligand_prep:
+  input_paths:
+    - "data/compounds/*.smi"
+    - "data/compounds/*.sdf"
+  ph: 7.4
+  strip_salts: true
+  largest_fragment_only: true
+  enumerate:
+    enable: false
+    max_tautomers: 6
+    max_stereoisomers: 2
+    allow_chiral_perms: false
+  conformers:
+    enable: true
+    max_confs: 10
+    prune_rms: 0.5
+    forcefield: "MMFF94"
+    max_iter: 200
+  export:
+    formats: ["smi", "sdf"]
+
+output:
+  dir: "data/outputs"
+  save_neighbors_topk: 25
+
+docking:
+  enabled: false
+  receptor_pdb_path: ""   # optional: path to PDB/mmCIF for docking when pocket is validated
+  cocrystal:
+    ligand_resname: ""     # required to define pocket from co-crystal ligand
+    chain_id: ""           # optional; used if SIFTS mapping is enforced
+    uniprot_id: ""         # optional; used if SIFTS mapping is enforced
+  box_margin: 12.0          # extra Å margin around ligand bounding box
+  auto_validate: false       # if true and pdb_id provided, try BioLiP+SIFTS validation
+  pdb_id: ""                # optional PDB ID used for BioLiP/SIFTS validation
+
+disease_terms: ["example"]  # used for discovery; leave as placeholder term
+organism: "Homo sapiens"

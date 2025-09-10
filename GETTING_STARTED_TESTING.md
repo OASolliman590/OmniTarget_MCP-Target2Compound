@@ -9,8 +9,7 @@ This guide shows you how to test each functionality of the MCP Drug Discovery Pi
 ### ✅ **Already Completed**
 - **Environment Setup**: Conda environment with Python 3.11 and all dependencies
 - **AutoDock Vina**: Successfully built from source (v1.2.7-20-g93cdc3d-mod)
-- **DeepDTA**: Repository cloned, adapter configured with placeholder predictions
-- **ML Adapters**: GeminiMol, DeepDTA, Vina, Ouroboros all working with real data
+- **ML Adapters**: GeminiMol, Vina, Ouroboros working with real data
 - **Real Compounds**: 11 sertraline compounds loaded and validated
 - **Scoring System**: Normalization and fusion tested with realistic compound data
 - **MCP Servers**: All 6 services running and responding correctly
@@ -109,7 +108,7 @@ try:
     config = RunConfig(
         disease_terms=['lung cancer'],
         compounds={'input_paths': ['test.smi']},
-        scoring={'weights': {'deepdta': 0.6, 'docking': 0.3, 'evidence': 0.1}}
+        scoring={'weights': {'similarity': 0.5, 'pharmacophore': 0.2, 'docking': 0.1, 'evidence': 0.2}}
     )
     print('✅ Configuration system works')
     print(f'Disease terms: {config.disease_terms}')
@@ -163,10 +162,9 @@ print('✅ MCP clients initialized successfully')
 ```bash
 # Test adapter initialization (without setup)
 python3 -c "
-from orchestrator.adapters import DeepDTAAdapter, GeminiMolAdapter, VinaAdapter, OuroborosAdapter
+from orchestrator.adapters import GeminiMolAdapter, VinaAdapter, OuroborosAdapter
 
 adapters = [
-    ('DeepDTA', DeepDTAAdapter()),
     ('GeminiMol', GeminiMolAdapter()),
     ('Vina', VinaAdapter()),
     ('Ouroboros', OuroborosAdapter())

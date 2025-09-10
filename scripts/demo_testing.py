@@ -52,7 +52,7 @@ class PipelineDemo:
             ("orchestrator.schemas.config", "RunConfig"),
             ("orchestrator.pipeline", "DrugDiscoveryPipeline"),
             ("orchestrator.mcp_clients", "KEGGClient"),
-            ("orchestrator.adapters", "DeepDTAAdapter"),
+            ("orchestrator.adapters", "GeminiMolAdapter"),
             ("orchestrator.scoring", "ScoreNormalizer")
         ]
         
@@ -130,7 +130,7 @@ class PipelineDemo:
             "max_targets": 3,
             "scoring": {
                 "weights": {
-                    "deepdta": 0.6,
+                    "similarity": 0.5,
                     "docking": 0.3,
                     "evidence": 0.1
                 }
@@ -194,15 +194,15 @@ class PipelineDemo:
         self.wait_for_user("Continue to test adapters...")
         
         print("\n🤖 Testing ML adapter initialization...")
-        from orchestrator.adapters import DeepDTAAdapter, GeminiMolAdapter
+        from orchestrator.adapters import GeminiMolAdapter
         
-        # Test DeepDTA adapter
-        print("Testing DeepDTA adapter...")
-        deepdta = DeepDTAAdapter()
-        print(f"  Model directory: {deepdta.deepdta_dir}")
+        // Sequence-based predictor removed
+        print("Testing Sequence Predictor adapter...")
+        
+        print(f"  Model directory: {GeminiMolAdapter}")
         
         try:
-            setup_ok = await deepdta.setup()
+            
             print(f"  Setup: {'✅ Success' if setup_ok else '❌ Failed'}")
             
             if setup_ok:
@@ -210,18 +210,18 @@ class PipelineDemo:
                 smiles = "CCO"
                 sequence = "MVLSPADKTNVKAAW"
                 
-                compound_encoded = deepdta._encode_compound(smiles)
-                protein_encoded = deepdta._encode_protein(sequence)
+                
+                
                 
                 print(f"  Encoded compound length: {len(compound_encoded)}")
                 print(f"  Encoded protein length: {len(protein_encoded)}")
                 
                 # Test prediction
-                score = await deepdta.predict_affinity(smiles, sequence)
+                
                 print(f"  Predicted affinity: {score.predicted_affinity:.3f}")
                 
         except Exception as e:
-            print(f"  ⚠️ DeepDTA test failed (expected if models not available): {e}")
+            print(f"  ⚠️ Sequence Predictor test failed (expected if models not available): {e}")
         
         self.wait_for_user()
     
@@ -298,7 +298,7 @@ class PipelineDemo:
                 "target_id": "EGFR",
                 "compound_smiles": "CCO",
                 "target_gene": "EGFR",
-                "deepdta_score": 8.5,
+                "similarity": 8.5,
                 "docking_score": -7.2,
                 "evidence_score": 6.0
             },
@@ -307,7 +307,7 @@ class PipelineDemo:
                 "target_id": "EGFR",
                 "compound_smiles": "CC(C)O",
                 "target_gene": "EGFR",
-                "deepdta_score": 7.8,
+                "similarity": 7.8,
                 "docking_score": -8.1,
                 "evidence_score": 5.5
             },
@@ -316,7 +316,7 @@ class PipelineDemo:
                 "target_id": "TP53",
                 "compound_smiles": "CCO",
                 "target_gene": "TP53",
-                "deepdta_score": 6.9,
+                "similarity": 6.9,
                 "docking_score": -6.8,
                 "evidence_score": 7.2
             },
@@ -325,7 +325,7 @@ class PipelineDemo:
                 "target_id": "KRAS",
                 "compound_smiles": "C1CCCCC1",
                 "target_gene": "KRAS",
-                "deepdta_score": 9.1,
+                "similarity": 9.1,
                 "docking_score": -7.5,
                 "evidence_score": 4.8
             }
@@ -337,7 +337,7 @@ class PipelineDemo:
         print("\n🔧 Testing score fusion...")
         from orchestrator.scoring import ScoreFusion
         
-        weights = {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}
+        weights = {"similarity": 0.5, "docking": 0.3, "evidence": 0.1}
         fusion = ScoreFusion(weights)
         
         print(f"Using weights: {weights}")
@@ -348,7 +348,7 @@ class PipelineDemo:
         for i, result in enumerate(combined_scores[:3]):  # Top 3
             print(f"  Rank {result['rank']}: {result['compound_id']}-{result['target_id']}")
             print(f"    Combined score: {result['combined_score']:.3f}")
-            print(f"    DeepDTA: {result['deepdta_score']} → {result['deepdta_normalized']:.3f}")
+            print(f"    Sequence Predictor: {result['deepdta_score']} → {result['deepdta_normalized']:.3f}")
             print(f"    Docking: {result['docking_score']} → {result['docking_normalized']:.3f}")
             print(f"    Evidence: {result['evidence_score']} → {result['evidence_normalized']:.3f}")
             print()
@@ -372,7 +372,7 @@ class PipelineDemo:
                 },
                 scoring={
                     "weights": {
-                        "deepdta": 0.6,
+                        "similarity": 0.5,
                         "docking": 0.3,
                         "evidence": 0.1
                     }

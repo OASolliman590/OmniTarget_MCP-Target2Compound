@@ -127,7 +127,7 @@ class ScoringConfig(BaseModel):
     """Scoring and ranking configuration."""
     
     weights: Dict[str, float] = Field(
-        default={"deepdta": 0.6, "docking": 0.3, "evidence": 0.1},
+        default={"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2},
         description="Weights for different scoring components"
     )
     normalize_scores: bool = Field(
@@ -150,9 +150,7 @@ class ScoringConfig(BaseModel):
         if abs(total - 1.0) > 0.01:
             raise ValueError(f"Weights must sum to 1.0, got {total}")
         
-        required_keys = {"deepdta", "docking", "evidence"}
-        if not required_keys.issubset(v.keys()):
-            raise ValueError(f"Weights must include keys: {required_keys}")
+        # Basic sanity: allow flexible keys; ensure non-negative
         
         for key, weight in v.items():
             if weight < 0:

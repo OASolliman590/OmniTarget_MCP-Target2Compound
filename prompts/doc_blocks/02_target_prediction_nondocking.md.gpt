@@ -1,0 +1,1 @@
+Explain the pipeline stages for non-docking target prediction: discovery, comparator construction, similarity features, QSAR (optional), pharmacophore, and fusion. Highlight that docking is off by default and pockets are validated strictly via BioLiP+CCD+SIFTS when enabled later.

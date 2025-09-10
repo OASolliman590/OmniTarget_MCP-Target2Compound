@@ -24,7 +24,6 @@ class PipelineStage(str, Enum):
     TARGET_CHARACTERIZATION = "target_characterization"
     COMPOUND_LOADING = "compound_loading"
     FEATURE_GENERATION = "feature_generation"
-    DEEPDTA_SCORING = "deepdta_scoring"
     DOCKING = "docking"
     EVIDENCE_VALIDATION = "evidence_validation"
     SCORE_INTEGRATION = "score_integration"
@@ -132,7 +131,6 @@ class PipelineResult(BaseModel):
     total_pairs: int = Field(description="Total compound-target pairs evaluated")
     
     # Results by method
-    deepdta_predictions: int = Field(default=0, description="DeepDTA predictions made")
     docking_results: int = Field(default=0, description="Docking calculations completed")
     evidence_matches: int = Field(default=0, description="Evidence records found")
     

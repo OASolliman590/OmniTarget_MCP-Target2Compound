@@ -1,5 +1,9 @@
 """
 AutoDock Vina adapter for molecular docking.
+
+This adapter does not fabricate outputs. It requires a real Vina binary and
+valid PDBQT files. If prerequisites are missing, methods return None or raise
+with clear messages so callers can skip docking gracefully.
 """
 
 import os
@@ -10,11 +14,10 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 
 from loguru import logger
-from rdkit import Chem
-from rdkit.Chem import AllChem
 
 from ..settings import settings
 from ..schemas.scoring import DockingScore
+from ..io.pdbqt import ligand_smiles_to_pdbqt, receptor_to_pdbqt, require_obabel
 
 
 class VinaAdapter:
@@ -113,64 +116,30 @@ class VinaAdapter:
             return None
     
     async def _prepare_ligand(self, smiles: str) -> Optional[str]:
-        """Prepare ligand PDBQT from SMILES."""
+        """Prepare ligand PDBQT from SMILES using RDKit + Open Babel."""
         try:
-            # Convert SMILES to 3D structure
-            mol = Chem.MolFromSmiles(smiles)
-            if mol is None:
-                return None
-            
-            mol = Chem.AddHs(mol)
-            
-            # Generate 3D coordinates
-            if AllChem.EmbedMolecule(mol) != 0:
-                logger.warning(f"Failed to generate 3D coordinates for {smiles}")
-                return None
-            
-            AllChem.MMFFOptimizeMolecule(mol)
-            
-            # Save as SDF temporarily
-            with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as f:
-                sdf_path = f.name
-            
-            writer = Chem.SDWriter(sdf_path)
-            writer.write(mol)
-            writer.close()
-            
-            # Convert to PDBQT (would need openbabel or similar)
-            # For now, return placeholder path
-            pdbqt_path = sdf_path.replace(".sdf", ".pdbqt")
-            
-            # Placeholder conversion (would use obabel in real implementation)
-            with open(pdbqt_path, "w") as f:
-                f.write("# Placeholder PDBQT file\n")
-            
-            return pdbqt_path
-            
+            require_obabel()
+            with tempfile.NamedTemporaryFile(suffix=".pdbqt", delete=False) as f:
+                out = Path(f.name)
+            pdbqt = ligand_smiles_to_pdbqt(smiles, out)
+            return str(pdbqt)
         except Exception as e:
-            logger.error(f"Error preparing ligand: {e}")
+            logger.error(f"Error preparing ligand PDBQT: {e}")
             return None
     
     async def _prepare_receptor(self, pdb_path: str) -> Optional[str]:
-        """Prepare receptor PDBQT from PDB."""
+        """Prepare receptor PDBQT from PDB using Open Babel."""
         try:
-            # Convert PDB to PDBQT (would need AutoDockTools or similar)
-            pdbqt_path = pdb_path.replace(".pdb", ".pdbqt")
-            
-            # Placeholder conversion
-            with open(pdbqt_path, "w") as f:
-                f.write("# Placeholder receptor PDBQT file\n")
-            
-            return pdbqt_path
-            
+            require_obabel()
+            pdbqt = receptor_to_pdbqt(Path(pdb_path), Path(pdb_path).with_suffix(".pdbqt"))
+            return str(pdbqt)
         except Exception as e:
-            logger.error(f"Error preparing receptor: {e}")
+            logger.error(f"Error preparing receptor PDBQT: {e}")
             return None
     
     async def _calculate_binding_site_center(self, pdb_path: str) -> Tuple[float, float, float]:
-        """Calculate binding site center from PDB."""
-        # Placeholder implementation - would analyze PDB structure
-        return (0.0, 0.0, 0.0)
+        """Binding site center is provided by pocket validation; no fallback."""
+        raise RuntimeError("Docking box center must be provided from validated pocket")
     
     async def _run_vina_docking(
         self,
@@ -210,14 +179,15 @@ class VinaAdapter:
             stdout, stderr = await process.communicate()
             
             if process.returncode == 0:
-                # Parse results (simplified)
-                binding_energy = -7.5  # Placeholder
-                
+                out_txt = stdout.decode()
+                be = _parse_vina_best_energy(out_txt)
+                if be is None:
+                    raise RuntimeError("Could not parse Vina energy from output")
                 return {
-                    "binding_energy": binding_energy,
+                    "binding_energy": be,
                     "output_path": output_path,
-                    "stdout": stdout.decode(),
-                    "stderr": stderr.decode()
+                    "stdout": out_txt,
+                    "stderr": stderr.decode(),
                 }
             else:
                 logger.error(f"Vina failed: {stderr.decode()}")
@@ -226,3 +196,24 @@ class VinaAdapter:
         except Exception as e:
             logger.error(f"Error running Vina: {e}")
             return None
+
+
+def _parse_vina_best_energy(stdout_text: str) -> Optional[float]:
+    """Parse the best binding energy from Vina stdout text.
+
+    Looks for the docking results table and returns the first energy value.
+    Returns None if not found.
+    """
+    lines = stdout_text.splitlines()
+    # Heuristic: lines with mode index at col 1 and energy in col 2
+    for line in lines:
+        s = line.strip()
+        if not s or not s[0].isdigit():
+            continue
+        parts = s.split()
+        if len(parts) >= 2:
+            try:
+                return float(parts[1])
+            except Exception:
+                continue
+    return None

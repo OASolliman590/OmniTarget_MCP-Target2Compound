@@ -54,7 +54,7 @@ try:
     config = RunConfig(
         disease_terms=['test'],
         compounds={'input_paths': ['test.smi']},
-        scoring={'weights': {'deepdta': 0.6, 'docking': 0.3, 'evidence': 0.1}}
+        scoring={'weights': {'similarity': 0.5, 'pharmacophore': 0.2, 'docking': 0.1, 'evidence': 0.2}}
     )
     print('✅ Configuration validation works')
 except Exception as e:
@@ -82,9 +82,10 @@ compounds:
 max_targets: 2
 scoring:
   weights:
-    deepdta: 0.6
-    docking: 0.3
-    evidence: 0.1
+    similarity: 0.5
+    pharmacophore: 0.2
+    docking: 0.1
+    evidence: 0.2
 output_dir: "data/outputs/test"
 debug_mode: true
 dry_run: true
@@ -102,11 +103,10 @@ fi
 echo "🤖 7. Testing ML adapters (basic setup)..."
 python3 -c "
 import asyncio
-from orchestrator.adapters import DeepDTAAdapter, GeminiMolAdapter, VinaAdapter, OuroborosAdapter
+from orchestrator.adapters import GeminiMolAdapter, VinaAdapter, OuroborosAdapter
 
 async def test_adapters():
     adapters = [
-        ('DeepDTA', DeepDTAAdapter()),
         ('GeminiMol', GeminiMolAdapter()),
         ('Vina', VinaAdapter()),
         ('Ouroboros', OuroborosAdapter())
@@ -136,10 +136,10 @@ assert len(normalized) == len(scores)
 print('✅ Score normalization works')
 
 # Test fusion
-weights = {'deepdta': 0.6, 'docking': 0.3, 'evidence': 0.1}
+weights = {'similarity': 0.5, 'pharmacophore': 0.2, 'docking': 0.1, 'evidence': 0.2}
 fusion = ScoreFusion(weights)
 score_data = [
-    {'pair_id': 'test', 'deepdta_score': 1.0, 'docking_score': 2.0, 'evidence_score': 3.0}
+    {'pair_id': 'test', 'docking_score': 2.0, 'evidence_score': 3.0}
 ]
 combined = fusion.combine_scores(score_data)
 assert len(combined) == 1
@@ -179,7 +179,6 @@ async def test_pipeline():
     
     # Test basic pipeline initialization
     assert hasattr(pipeline, 'kegg_client')
-    assert hasattr(pipeline, 'deepdta_adapter')
     print('✅ Pipeline initialized')
     
     # Test configuration loading

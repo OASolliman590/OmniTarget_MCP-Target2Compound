@@ -10,31 +10,12 @@ from enum import Enum
 
 class ScoreType(str, Enum):
     """Types of scoring methods."""
-    DEEPDTA = "deepdta"
     DOCKING = "docking"
     EVIDENCE = "evidence"
     COMBINED = "combined"
 
 
-class DeepDTAScore(BaseModel):
-    """DeepDTA binding affinity prediction score."""
-    
-    compound_id: str = Field(description="Compound identifier")
-    target_id: str = Field(description="Target identifier")
-    predicted_affinity: float = Field(description="Predicted binding affinity")
-    confidence: Optional[float] = Field(default=None, description="Prediction confidence score")
-    
-    # Model information
-    model_version: Optional[str] = Field(default=None, description="DeepDTA model version")
-    smiles: str = Field(description="SMILES used for prediction")
-    sequence: str = Field(description="Protein sequence used for prediction")
-    
-    # Processing metadata
-    processing_time: Optional[float] = Field(default=None, description="Processing time in seconds")
-    created_at: datetime = Field(default_factory=datetime.now)
-    
-    class Config:
-        extra = "allow"
+"""Sequence-based predictor removed."""
 
 
 class DockingScore(BaseModel):
@@ -105,7 +86,6 @@ class IntegratedScore(BaseModel):
     target_id: str = Field(description="Target identifier")
     
     # Individual scores
-    deepdta_score: Optional[float] = Field(default=None, description="Normalized DeepDTA score")
     docking_score: Optional[float] = Field(default=None, description="Normalized docking score")
     evidence_score: Optional[float] = Field(default=None, description="Evidence-based score")
     
@@ -145,7 +125,6 @@ class RankedHit(BaseModel):
     
     # Scores
     integrated_score: IntegratedScore = Field(description="Integrated scoring data")
-    deepdta_scores: List[DeepDTAScore] = Field(default_factory=list, description="DeepDTA predictions")
     docking_scores: List[DockingScore] = Field(default_factory=list, description="Docking results")
     evidence_records: List[EvidenceRecord] = Field(default_factory=list, description="Bioactivity evidence")
     
@@ -180,8 +159,7 @@ class RankedHit(BaseModel):
         
         # Determine confidence tier based on available data
         score = 0
-        if self.deepdta_scores:
-            score += 1
+        # Sequence-based predictor removed
         if self.docking_scores:
             score += 2  # Docking weighted higher
         if self.evidence_records:
@@ -202,7 +180,6 @@ class ScoringReport(BaseModel):
     total_pairs: int = Field(description="Total compound-target pairs evaluated")
     
     # Score statistics
-    deepdta_count: int = Field(default=0, description="Pairs with DeepDTA scores")
     docking_count: int = Field(default=0, description="Pairs with docking scores")
     evidence_count: int = Field(default=0, description="Pairs with experimental evidence")
     

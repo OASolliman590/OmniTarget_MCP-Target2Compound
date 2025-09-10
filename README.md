@@ -9,9 +9,11 @@ This pipeline integrates multiple biological databases and ML models to identify
 - **Target Discovery**: KEGG pathways, Reactome enrichment
 - **Target Characterization**: Protein Atlas expression, STRING PPI, UniProt sequences, PDB structures  
 - **Molecular Representation**: GeminiMol embeddings, Ouroboros features
-- **Affinity Prediction**: DeepDTA binding affinity prediction
+- **Ligand Similarity & Features**: GeminiMol/Ouroboros, RDKit fingerprints
 - **Molecular Docking**: AutoDock Vina structure-based screening
 - **Evidence Validation**: ChEMBL bioactivity data
+
+Non-docking target prediction is the default workflow. Comparator evidence (ChEMBL) plus similarity/ML features drive ranking. Docking is optional and gated: it runs only when a co-crystal pocket is validated (BioLiP/PDBe + CCD additive filter + SIFTS mapping) and required tools are available (Open Babel + AutoDock Vina + RDKit). See `docs/Documentation.md` and `docs/Methods.md` for details.
 
 **Key Principles:**
 - ✅ **No hardcoded data** - all inputs from config files and user-provided compounds
@@ -24,8 +26,7 @@ This pipeline integrates multiple biological databases and ML models to identify
 ### ✅ **Completed Components**
 - **Environment Setup**: Conda environment with Python 3.11 and all dependencies
 - **AutoDock Vina**: Successfully built from source (v1.2.7-20-g93cdc3d-mod)
-- **DeepDTA**: Repository cloned, adapter configured with placeholder predictions
-- **ML Adapters**: GeminiMol, DeepDTA, Vina, Ouroboros all working
+- **ML Adapters**: GeminiMol, Vina, Ouroboros working
 - **Real Compounds**: 11 sertraline compounds loaded and validated
 - **Scoring System**: Normalization and fusion working correctly
 - **Configuration**: Test config validated for sertraline compounds
@@ -46,7 +47,7 @@ This pipeline integrates multiple biological databases and ML models to identify
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   MCP Servers   │    │   Orchestrator  │    │   ML Adapters   │
 │                 │    │                 │    │                 │
-│ • KEGG          │────│ • Pipeline      │────│ • DeepDTA       │
+│ • KEGG          │────│ • Pipeline      │────│ • Similarity    │
 │ • Reactome      │    │ • FastAPI       │    │ • GeminiMol     │
 │ • ProteinAtlas  │    │ • CLI           │    │ • AutoDock Vina │
 │ • STRING        │    │ • Scoring       │    │ • Ouroboros     │
@@ -79,6 +80,45 @@ chmod +x conda_env_setup.sh
 source activate_env.sh
 ```
 
+### Non-docking quick run
+
+```
+python -m orchestrator.cli example_nd_config --output-path run.nd.yaml
+python -m orchestrator.cli run_nd run.nd.yaml
+```
+
+### Optional docking (gated)
+
+1) Ensure dependencies:
+   - RDKit import works
+   - `obabel` on PATH (Open Babel)
+   - AutoDock Vina binary configured in settings (`models.vina_binary_path`)
+
+2) Edit `run.nd.yaml`:
+
+```
+docking:
+  enabled: true
+  receptor_pdb_path: "data/structures/target.pdb"  # or .cif
+  cocrystal:
+    ligand_resname: "LIG"    # non-additive residue ID
+    chain_id: "A"            # optional
+    uniprot_id: "P12345"     # optional; enforces SIFTS mapping when pdb_id present
+  pdb_id: "1ABC"             # optional; used if auto_validate is true
+  auto_validate: true         # optionally fetch/select ligand via PDBe
+  box_margin: 12.0
+
+scoring:
+  weights:
+    docking: 0.10             # include docking in fused score
+```
+
+3) Run: `python -m orchestrator.cli run run.nd.yaml`
+
+Outputs will include `docking_results.csv` and `results.csv` with a `docking_score` column.
+
+Tip: For receptor preparation and pocket analysis, consider evaluating the PDB Prepare Wizard (see docs below) to improve cleanup and pocket quality.
+
 ### 2. Install ML Dependencies
 
 **AutoDock Vina (Already Built)**
@@ -88,11 +128,6 @@ source activate_env.sh
 # Version: v1.2.7-20-g93cdc3d-mod
 ```
 
-**DeepDTA (Repository Cloned)**
-```bash
-# DeepDTA repository is already cloned in third_party/DeepDTA/
-# Adapter configured with placeholder predictions
-# Ready for real model integration
 ```
 
 **Option B: Docker Only**
@@ -126,7 +161,6 @@ git submodule add https://github.com/Augmented-Nature/PDB-MCP-Server.git service
 git submodule add https://github.com/Augmented-Nature/ChEMBL-MCP-Server.git services/chembl-mcp
 
 # Add ML model repositories
-git submodule add https://github.com/hkmztrk/DeepDTA.git third_party/DeepDTA
 git submodule add https://github.com/Wang-Lin-boop/GeminiMol.git third_party/GeminiMol
 git submodule add https://github.com/ccsb-scripps/AutoDock-Vina.git third_party/autodock-vina
 ```
@@ -196,7 +230,9 @@ compounds:
 
 scoring:
   weights:
-    deepdta: 0.6
+    similarity: 0.5
+    pharmacophore: 0.2
+    docking: 0.1
     docking: 0.3
     evidence: 0.1
 
@@ -242,8 +278,7 @@ data/outputs/run_20240115_143022_abc123/
 ├── manifest.json            # Complete provenance record
 ├── targets.json             # Discovered and characterized targets
 ├── compounds.json           # Processed compound library
-├── deepdta_scores.csv       # Affinity predictions
-├── docking_results.csv      # Molecular docking scores
+├── docking_results.csv      # Molecular docking scores (if docking enabled and validated)
 ├── evidence_records.csv     # Bioactivity evidence
 └── plots/                   # Visualization plots
     ├── score_distribution.html
@@ -253,7 +288,7 @@ data/outputs/run_20240115_143022_abc123/
 
 ### Results Format
 
-The main `results.csv` contains:
+The main `results.csv` contains (non-docking default):
 
 | Column | Description |
 |--------|-------------|
@@ -261,11 +296,13 @@ The main `results.csv` contains:
 | `compound_smiles` | Canonical SMILES |
 | `target_id` | Target identifier |
 | `target_gene` | Gene symbol |
-| `combined_score` | Integrated score |
-| `deepdta_affinity` | Predicted binding affinity |
-| `docking_energy` | Docking binding energy |
-| `evidence_pchembl` | Experimental pChEMBL value |
-| `confidence_tier` | Confidence level (high/medium/low) |
+| `cosine_max` | Similarity (GeminiMol cosine or fallback) |
+| `tanimoto_max` | RDKit Morgan Tanimoto (fallback) |
+| `ph4_best` | Pharmacophore best overlap score |
+| `evidence_strength` | Comparator evidence strength (0–1) |
+| `docking_score` | Normalized docking score (if enabled) |
+| `fused_score` | Final integrated score |
+| `rank` | Rank index |
 
 ## 🧪 Testing
 
@@ -280,6 +317,10 @@ docker compose exec orchestrator python -m pytest orchestrator/tests/test_integr
 ```
 
 **Note**: Tests require real compound files - no synthetic or mock data is used.
+
+### Environment check
+
+Run `python scripts/check_env.py` to verify RDKit, Open Babel, Vina, and optional PDBe connectivity before enabling docking.
 
 ## 🔄 Development
 
@@ -364,9 +405,10 @@ docker compose restart kegg-mcp
 
 1. **KEGG**: [github.com/Augmented-Nature/KEGG-MCP-Server](https://github.com/Augmented-Nature/KEGG-MCP-Server)
 2. **Reactome**: [github.com/Augmented-Nature/Reactome-MCP-Server](https://github.com/Augmented-Nature/Reactome-MCP-Server)
-3. **DeepDTA**: [github.com/hkmztrk/DeepDTA](https://github.com/hkmztrk/DeepDTA)
-4. **GeminiMol**: [github.com/Wang-Lin-boop/GeminiMol](https://github.com/Wang-Lin-boop/GeminiMol)
-5. **AutoDock Vina**: [github.com/ccsb-scripps/AutoDock-Vina](https://github.com/ccsb-scripps/AutoDock-Vina)
+3. **GeminiMol**: [github.com/Wang-Lin-boop/GeminiMol](https://github.com/Wang-Lin-boop/GeminiMol)
+4. **AutoDock Vina**: [github.com/ccsb-scripps/AutoDock-Vina](https://github.com/ccsb-scripps/AutoDock-Vina)
+5. **PDBe APIs (SIFTS & Ligands)**: https://www.ebi.ac.uk/pdbe/api
+6. **PDB Prepare Wizard**: [github.com/OASolliman590/pdb-prepare-wizard](https://github.com/OASolliman590/pdb-prepare-wizard)
 
 ## 📄 License
 

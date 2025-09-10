@@ -16,7 +16,7 @@ from typing import Dict, List, Any
 sys.path.append(str(Path(__file__).parent.parent))
 
 from orchestrator.mcp_clients import *
-from orchestrator.adapters import *
+from orchestrator.adapters import GeminiMolAdapter, VinaAdapter, OuroborosAdapter
 from orchestrator.pipeline import DrugDiscoveryPipeline
 from orchestrator.schemas.config import RunConfig
 from orchestrator.scoring import ScoreNormalizer, ScoreFusion
@@ -96,26 +96,7 @@ class FunctionalityTester:
         print("\n🤖 Testing ML Model Adapters")
         print("=" * 50)
         
-        # Test DeepDTA Adapter
-        try:
-            deepdta = DeepDTAAdapter()
-            setup_ok = await deepdta.setup()
-            
-            if setup_ok:
-                # Test prediction interface
-                score = await deepdta.predict_affinity(
-                    smiles="CCO",
-                    protein_sequence="MVLSPADKTNVKAAW",
-                    compound_id="test_comp",
-                    target_id="test_target"
-                )
-                self.log_test("DeepDTA_prediction", "PASS", 
-                            f"Predicted affinity: {score.predicted_affinity:.3f}")
-            else:
-                self.log_test("DeepDTA_setup", "FAIL", "Setup failed")
-                
-        except Exception as e:
-            self.log_test("DeepDTA_adapter", "SKIP", f"Not available: {str(e)[:100]}")
+        # Sequence-based predictor removed; skip
         
         # Test GeminiMol Adapter
         try:
@@ -179,12 +160,12 @@ class FunctionalityTester:
                         f"MinMax-normalized: {[f'{x:.2f}' for x in minmax_normalized[:3]]}")
             
             # Test score fusion
-            weights = {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}
+            weights = {"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2}
             fusion = ScoreFusion(weights)
             
             score_data = [
-                {"pair_id": "comp1-targ1", "deepdta_score": 8.5, "docking_score": -7.2, "evidence_score": 6.0},
-                {"pair_id": "comp1-targ2", "deepdta_score": 7.8, "docking_score": -8.1, "evidence_score": 5.5}
+                {"pair_id": "comp1-targ1", "docking_score": -7.2, "evidence_score": 6.0},
+                {"pair_id": "comp1-targ2", "docking_score": -8.1, "evidence_score": 5.5}
             ]
             
             combined = fusion.combine_scores(score_data)
@@ -208,9 +189,10 @@ class FunctionalityTester:
                 },
                 scoring={
                     "weights": {
-                        "deepdta": 0.6,
-                        "docking": 0.3,
-                        "evidence": 0.1
+                        "similarity": 0.5,
+                        "pharmacophore": 0.2,
+                        "docking": 0.1,
+                        "evidence": 0.2
                     }
                 }
             )
@@ -264,9 +246,10 @@ class FunctionalityTester:
                 "max_targets": 3,
                 "scoring": {
                     "weights": {
-                        "deepdta": 0.6,
-                        "docking": 0.3,
-                        "evidence": 0.1
+                        "similarity": 0.5,
+                        "pharmacophore": 0.2,
+                        "docking": 0.1,
+                        "evidence": 0.2
                     }
                 },
                 "output_dir": "data/outputs/test",

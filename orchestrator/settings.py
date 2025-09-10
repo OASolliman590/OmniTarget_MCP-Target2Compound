@@ -27,14 +27,6 @@ class MCPServerSettings(BaseSettings):
 class ModelSettings(BaseSettings):
     """ML Model settings."""
     
-    # DeepDTA settings
-    deepdta_dir: str = Field(default="third_party/DeepDTA", env="DEEPDTA_DIR")
-    deepdta_model_path: Optional[str] = Field(default=None, env="DEEPDTA_MODEL_PATH")
-    deepdta_weights_url: str = Field(
-        default="https://github.com/hkmztrk/DeepDTA/releases/download/v1.0/model_weights.h5",
-        env="DEEPDTA_WEIGHTS_URL"
-    )
-    
     # GeminiMol settings
     geminimol_model_path: Optional[str] = Field(default=None, env="GEMINIMOL_MODEL_PATH")
     
@@ -64,7 +56,6 @@ class FileSettings(BaseSettings):
     compounds_dir: str = Field(default="./data/compounds", env="COMPOUNDS_DIR")
     
     # Third party paths
-    deepdta_dir: str = Field(default="./third_party/DeepDTA", env="DEEPDTA_DIR")
     geminimol_dir: str = Field(default="./third_party/GeminiMol", env="GEMINIMOL_DIR")
     vina_dir: str = Field(default="./third_party/autodock-vina", env="VINA_DIR")
 

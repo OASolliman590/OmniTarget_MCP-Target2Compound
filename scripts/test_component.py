@@ -4,7 +4,7 @@ Individual component testing script.
 
 Usage:
     python scripts/test_component.py mcp kegg
-    python scripts/test_component.py adapter deepdta
+    python scripts/test_component.py adapter geminimol
     python scripts/test_component.py pipeline compound_loading
     python scripts/test_component.py scoring normalization
 """
@@ -88,34 +88,7 @@ async def test_adapter(adapter_name: str):
     print("=" * 40)
     
     try:
-        if adapter_name.lower() == "deepdta":
-            from orchestrator.adapters import DeepDTAAdapter
-            adapter = DeepDTAAdapter()
-            
-            print(f"DeepDTA directory: {adapter.deepdta_dir}")
-            print(f"Model path: {adapter.model_path}")
-            
-            # Test setup
-            print("Testing setup...")
-            setup_ok = await adapter.setup()
-            print(f"Setup: {'✅ Success' if setup_ok else '❌ Failed'}")
-            
-            if setup_ok:
-                # Test prediction
-                print("Testing prediction...")
-                score = await adapter.predict_affinity(
-                    smiles="CCO",
-                    protein_sequence="MVLSPADKTNVKAAW",
-                    compound_id="test_compound",
-                    target_id="test_target"
-                )
-                print(f"Prediction result:")
-                print(f"  Compound: {score.compound_id}")
-                print(f"  Target: {score.target_id}")
-                print(f"  Affinity: {score.predicted_affinity:.3f}")
-                print(f"  Confidence: {score.confidence:.3f}")
-            
-        elif adapter_name.lower() == "geminimol":
+        if adapter_name.lower() == "geminimol":
             from orchestrator.adapters import GeminiMolAdapter
             adapter = GeminiMolAdapter()
             
@@ -175,7 +148,7 @@ async def test_adapter(adapter_name: str):
         
         else:
             print(f"❌ Unknown adapter: {adapter_name}")
-            print("Available adapters: deepdta, geminimol, vina, ouroboros")
+            print("Available adapters: geminimol, vina, ouroboros")
             
     except Exception as e:
         print(f"❌ Error testing {adapter_name}: {e}")
@@ -266,19 +239,19 @@ def test_scoring(test_type: str):
         elif test_type.lower() == "fusion":
             from orchestrator.scoring import ScoreFusion
             
-            weights = {"deepdta": 0.6, "docking": 0.3, "evidence": 0.1}
+            weights = {"similarity": 0.5, "pharmacophore": 0.2, "docking": 0.1, "evidence": 0.2}
             fusion = ScoreFusion(weights)
             
             score_data = [
-                {"pair_id": "comp1-targ1", "deepdta_score": 8.5, "docking_score": -7.2, "evidence_score": 6.0},
-                {"pair_id": "comp1-targ2", "deepdta_score": 7.8, "docking_score": -8.1, "evidence_score": 5.5},
-                {"pair_id": "comp2-targ1", "deepdta_score": 9.1, "docking_score": -6.8, "evidence_score": 7.2},
-                {"pair_id": "comp2-targ2", "deepdta_score": 6.9, "docking_score": -7.5, "evidence_score": 4.8}
+                {"pair_id": "comp1-targ1", "docking_score": -7.2, "evidence_score": 6.0},
+                {"pair_id": "comp1-targ2", "docking_score": -8.1, "evidence_score": 5.5},
+                {"pair_id": "comp2-targ1", "docking_score": -6.8, "evidence_score": 7.2},
+                {"pair_id": "comp2-targ2", "docking_score": -7.5, "evidence_score": 4.8}
             ]
             
             print("Original score data:")
             for item in score_data:
-                print(f"  {item['pair_id']}: DeepDTA={item['deepdta_score']}, Docking={item['docking_score']}, Evidence={item['evidence_score']}")
+                print(f"  {item['pair_id']}: Docking={item['docking_score']}, Evidence={item['evidence_score']}")
             
             combined = fusion.combine_scores(score_data)
             

@@ -16,7 +16,8 @@ from rich.table import Table
 
 from .settings import settings
 from .schemas.config import RunConfig
-from .pipeline import DrugDiscoveryPipeline
+# Import legacy pipeline lazily to avoid unnecessary overhead
+from .pipeline_nondocking import NonDockingPipeline
 
 # Create Typer app
 app = typer.Typer(
@@ -30,40 +31,77 @@ console = Console()
 
 @app.command()
 def run(
-    config_path: str = typer.Argument(..., help="Path to configuration YAML file"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Validate configuration without running"),
+    config_path: str = typer.Argument(..., help="Path to configuration YAML file (non-docking by default)"),
+    legacy: bool = typer.Option(False, "--legacy", help="Use the legacy docking-enabled pipeline"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Validate configuration without running (legacy only)"),
     debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
-    output_dir: Optional[str] = typer.Option(None, "--output-dir", help="Override output directory")
+    output_dir: Optional[str] = typer.Option(None, "--output-dir", help="Override output directory (legacy only)")
 ):
-    """Run the drug discovery pipeline."""
-    
+    """Run the pipeline. Defaults to non-docking; use --legacy for the old flow."""
+
     # Configure logging
     log_level = "DEBUG" if debug else settings.logging.log_level
     logger.remove()
-    logger.add(
-        sys.stderr,
-        level=log_level,
-        format=settings.logging.log_format
-    )
-    
-    if settings.logging.log_file:
-        logger.add(settings.logging.log_file, level=log_level)
-    
+    logger.add(sys.stderr, level=log_level, format=settings.logging.log_format)
+
+    if legacy:
+        logger.info("'run' executing legacy pipeline. For non-docking use 'run_nd'.")
+        # Legacy path mirrors previous behavior
+        try:
+            from .pipeline import DrugDiscoveryPipeline
+            config = load_config(config_path)
+            if output_dir:
+                config.output_dir = output_dir
+            if dry_run:
+                config.dry_run = True
+            asyncio.run(run_pipeline(config))
+        except Exception as e:
+            logger.error(f"Legacy pipeline failed: {e}")
+            raise typer.Exit(1)
+        return
+
+    # Non-legacy path: non-docking default
+    logger.info("'run' now executes the non-docking pipeline. Use '--legacy' or 'run_legacy' for the old behavior.")
     try:
-        # Load configuration
-        config = load_config(config_path)
-        
-        if output_dir:
-            config.output_dir = output_dir
-        
-        if dry_run:
-            config.dry_run = True
-        
-        # Run pipeline
-        asyncio.run(run_pipeline(config))
-        
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f)
+        pipeline = NonDockingPipeline(cfg)
+        result = pipeline.run()
+        console.print(f"[green]✓[/green] Non-docking run completed. Results: {result['results_csv']}")
     except Exception as e:
-        logger.error(f"Pipeline failed: {e}")
+        logger.error(f"Non-docking pipeline failed: {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def run_nd(
+    config_path: str = typer.Argument(..., help="Path to non-docking YAML config"),
+    enable_qsar: bool = typer.Option(False, "--enable-qsar", help="Enable QSAR stage (if feasible)"),
+    disable_ph4: bool = typer.Option(False, "--disable-ph4", help="Disable pharmacophore features"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
+):
+    """Run the non-docking pipeline (comparators + similarity + pharmacophore)."""
+
+    # Configure logging
+    log_level = "DEBUG" if debug else settings.logging.log_level
+    logger.remove()
+    logger.add(sys.stderr, level=log_level, format=settings.logging.log_format)
+
+    try:
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f)
+
+        # CLI overrides
+        if enable_qsar:
+            cfg.setdefault("scoring", {}).setdefault("weights", {}).setdefault("qsar", 0.15)
+        if disable_ph4:
+            cfg.setdefault("pharmacophore", {})["method"] = "disabled"
+
+        pipeline = NonDockingPipeline(cfg)
+        result = pipeline.run()
+        console.print(f"[green]✓[/green] Non-docking run completed. Results: {result['results_csv']}")
+    except Exception as e:
+        logger.error(f"Non-docking pipeline failed: {e}")
         raise typer.Exit(1)
 
 
@@ -100,6 +138,7 @@ def status():
     """Check status of MCP servers and dependencies."""
     
     async def check_status():
+        from .pipeline import DrugDiscoveryPipeline
         pipeline = DrugDiscoveryPipeline()
         
         # Create status table
@@ -133,6 +172,33 @@ def status():
 
 
 @app.command()
+def run_legacy(
+    config_path: str = typer.Argument(..., help="Path to configuration YAML file (legacy pipeline)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Validate configuration without running"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
+    output_dir: Optional[str] = typer.Option(None, "--output-dir", help="Override output directory")
+):
+    """Run the legacy docking-enabled pipeline explicitly."""
+
+    # Configure logging
+    log_level = "DEBUG" if debug else settings.logging.log_level
+    logger.remove()
+    logger.add(sys.stderr, level=log_level, format=settings.logging.log_format)
+
+    try:
+        from .pipeline import DrugDiscoveryPipeline
+        config = load_config(config_path)
+        if output_dir:
+            config.output_dir = output_dir
+        if dry_run:
+            config.dry_run = True
+        asyncio.run(run_pipeline(config))
+    except Exception as e:
+        logger.error(f"Legacy pipeline failed: {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
 def example_config(
     output_path: str = typer.Option("config.yaml", help="Output path for example configuration")
 ):
@@ -158,9 +224,10 @@ def example_config(
         },
         "scoring": {
             "weights": {
-                "deepdta": 0.6,
-                "docking": 0.3,
-                "evidence": 0.1
+                "similarity": 0.5,
+                "pharmacophore": 0.2,
+                "docking": 0.1,
+                "evidence": 0.2
             }
         },
         "output_dir": "data/outputs"
@@ -170,6 +237,22 @@ def example_config(
         yaml.dump(example_config, f, default_flow_style=False, sort_keys=False)
     
     console.print(f"[green]✓[/green] Example configuration written to {output_path}")
+
+
+@app.command()
+def example_nd_config(
+    output_path: str = typer.Option("run.nd.yaml", help="Output path for non-docking example configuration")
+):
+    """Generate non-docking example configuration file."""
+
+    from pathlib import Path
+    src = Path("configs/run.nd.example.yaml")
+    if not src.exists():
+        console.print("[red]Error:[/red] run.nd.example.yaml not found in configs/")
+        raise typer.Exit(1)
+    content = src.read_text()
+    Path(output_path).write_text(content)
+    console.print(f"[green]✓[/green] Non-docking example configuration written to {output_path}")
 
 
 def load_config(config_path: str) -> RunConfig:
@@ -270,7 +353,7 @@ def display_results_summary(result):
     table.add_row("Total Targets", str(result.total_targets))
     table.add_row("Total Compounds", str(result.total_compounds))
     table.add_row("Total Pairs Evaluated", str(result.total_pairs))
-    table.add_row("DeepDTA Predictions", str(result.deepdta_predictions))
+    # Sequence-based predictor removed; no predictions row
     table.add_row("Docking Results", str(result.docking_results))
     table.add_row("Evidence Matches", str(result.evidence_matches))
     table.add_row("Top Hits", str(result.top_hits_count))

@@ -23,9 +23,10 @@ def test_config():
         max_targets=5,
         scoring={
             "weights": {
-                "deepdta": 0.6,
-                "docking": 0.3,
-                "evidence": 0.1
+                "similarity": 0.5,
+                "pharmacophore": 0.2,
+                "docking": 0.1,
+                "evidence": 0.2
             }
         },
         output_dir="data/outputs/test",

@@ -114,7 +114,7 @@ Add these topics to your repository:
 ### Create Issues for Future Development
 ```bash
 # Using GitHub CLI
-gh issue create --title "Integrate Real DeepDTA Model" --body "Replace placeholder DeepDTA implementation with actual model loading and prediction"
+gh issue create --title "Sequence-based predictor integration (future)" --body "Optional: add a sequence–ligand predictor in a gated, non-default path when a strong, validated model is available."
 gh issue create --title "Add More MCP Servers" --body "Implement additional MCP servers for comprehensive biological data integration"
 gh issue create --title "Performance Optimization" --body "Optimize pipeline performance for large-scale drug discovery"
 gh issue create --title "Web Interface" --body "Create web-based interface for pipeline interaction"
@@ -244,7 +244,7 @@ Monitor your repository with:
 
 2. **Continue Development**:
    - Use background agents for feature development
-   - Implement real DeepDTA model integration
+   - Optional: integrate a sequence-based predictor in a gated path (not default)
    - Add more MCP servers
    - Improve performance and scalability
 

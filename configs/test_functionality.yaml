@@ -10,6 +10,7 @@ organism: Homo sapiens
 output_dir: data/outputs/test
 scoring:
   weights:
-    deepdta: 0.6
-    docking: 0.3
+    similarity: 0.5
+    pharmacophore: 0.2
+    docking: 0.1
     evidence: 0.1
