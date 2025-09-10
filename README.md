@@ -16,7 +16,6 @@ This pipeline integrates multiple biological databases and ML models to identify
 Non-docking target prediction is the default workflow. Comparator evidence (ChEMBL) plus similarity/ML features drive ranking. Docking is optional and gated: it runs only when a co-crystal pocket is validated (BioLiP/PDBe + CCD additive filter + SIFTS mapping) and required tools are available (Open Babel + AutoDock Vina + RDKit). See `docs/Documentation.md` and `docs/Methods.md` for details.
 
 **Key Principles:**
-- ✅ **No hardcoded data** - all inputs from config files and user-provided compounds
 - ✅ **Live API integration** - real data from MCP servers, no mocks or fixtures
 - ✅ **Reproducible** - complete provenance tracking and versioning
 - ✅ **Scalable** - async processing, caching, and containerized services
@@ -422,11 +421,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 4. Add tests for new functionality
 5. Submit a pull request
 
-## 💬 Support
-
-- 📧 Email: support@drug-discovery-pipeline.org
-- 💬 Discord: [Join our community](https://discord.gg/mcp-drug-discovery)
-- 📝 Issues: [GitHub Issues](https://github.com/your-org/mcp-drug-discovery/issues)
 
 ---
 
