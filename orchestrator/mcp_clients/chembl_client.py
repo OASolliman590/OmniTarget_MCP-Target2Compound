@@ -17,7 +17,7 @@ from loguru import logger
 from .chembl import ChEMBLClient as MCPChEMBLClient
 
 
-def fetch_target_actives(chembl_target_id: str, min_pchembl: float) -> List[Dict]:
+async def fetch_target_actives(chembl_target_id: str, min_pchembl: float) -> List[Dict]:
     """Fetch active compounds for a ChEMBL target via MCP.
 
     Returns records with keys: {chembl_id, smiles, pchembl_value, assay_type, organism}.
@@ -29,23 +29,7 @@ def fetch_target_actives(chembl_target_id: str, min_pchembl: float) -> List[Dict
         # The existing MCP client exposes `get_bioactivity_data(target_id, compound_id=None)`
         # Here we only pass target_id
         # Note: The exact response schema depends on the MCP; adapt mapping as needed.
-        loop = None
-        try:
-            import asyncio
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            pass
-
-        async def _fetch():
-            return await client.get_bioactivity_data(target_id=chembl_target_id)
-
-        if loop and loop.is_running():
-            # If already running in async context, caller should integrate async.
-            logger.warning("fetch_target_actives called in running event loop; returning empty.")
-            return []
-        else:
-            import asyncio
-            activities = asyncio.run(_fetch())
+        activities = await client.get_bioactivity_data(target_id=chembl_target_id)
 
         records: List[Dict[str, Any]] = []
         for a in activities or []:

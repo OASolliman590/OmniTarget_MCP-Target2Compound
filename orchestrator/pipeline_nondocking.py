@@ -126,7 +126,7 @@ class NonDockingPipeline:
             json.dump(manifest, f, indent=2)
         return path
 
-    def run(self) -> Dict[str, Any]:
+    async def run(self) -> Dict[str, Any]:
         manifest = self._manifest_base()
 
         # 0) Ligand ingestion and prep
@@ -183,18 +183,12 @@ class NonDockingPipeline:
             tid = t.get("chembl_id") or t.get("target_chembl_id") or t.get("uniprot_id")
             if not tid:
                 continue
-            actives = fetch_target_actives(tid, min_pchembl=min_pchembl)
+            actives = await fetch_target_actives(tid, min_pchembl=min_pchembl)
             
-            # If no actives found (MCP service issue), create mock data for testing
+            # If no actives found, skip this target
             if not actives:
-                logger.warning(f"No ChEMBL data found for {tid}, using mock data for testing")
-                # Create mock active compounds for testing
-                mock_actives = [
-                    {"chembl_id": "CHEMBL123", "smiles": "CCO", "pchembl_value": 7.2, "assay_type": "IC50", "organism": "Homo sapiens"},
-                    {"chembl_id": "CHEMBL456", "smiles": "CC(C)O", "pchembl_value": 6.8, "assay_type": "IC50", "organism": "Homo sapiens"},
-                    {"chembl_id": "CHEMBL789", "smiles": "C1CCCCC1", "pchembl_value": 6.5, "assay_type": "IC50", "organism": "Homo sapiens"},
-                ]
-                actives = mock_actives
+                logger.warning(f"No ChEMBL data found for {tid}, skipping target")
+                continue
             
             summary = summarize_comparator_quality(actives)
             evd = evidence_strength([summary])

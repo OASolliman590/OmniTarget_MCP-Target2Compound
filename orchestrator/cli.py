@@ -98,7 +98,7 @@ def run_nd(
             cfg.setdefault("pharmacophore", {})["method"] = "disabled"
 
         pipeline = NonDockingPipeline(cfg)
-        result = pipeline.run()
+        result = asyncio.run(pipeline.run())
         console.print(f"[green]✓[/green] Non-docking run completed. Results: {result['results_csv']}")
     except Exception as e:
         logger.error(f"Non-docking pipeline failed: {e}")
