@@ -1,6 +1,6 @@
 # MCP Drug Discovery Pipeline
 
-A comprehensive, **zero-hardcode** drug discovery pipeline that orchestrates target discovery, molecular docking, affinity prediction, and bioactivity validation using MCP servers and state-of-the-art ML models.
+A comprehensive drug discovery pipeline that orchestrates target discovery, molecular docking, affinity prediction, and bioactivity validation using MCP servers and state-of-the-art ML models.
 
 ## 🎯 Overview
 
