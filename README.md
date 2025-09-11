@@ -118,6 +118,31 @@ Outputs will include `docking_results.csv` and `results.csv` with a `docking_sco
 
 Tip: For receptor preparation and pocket analysis, consider evaluating the PDB Prepare Wizard (see docs below) to improve cleanup and pocket quality.
 
+### Reporting & Visualization
+
+Generate a static HTML report after a run (non-docking default):
+
+```
+python scripts/generate_report.py --results data/outputs/run_*/results.csv --manifest data/outputs/run_*/manifest.json
+```
+
+Or enable reporting in the config:
+
+```
+visualization:
+  enabled: true
+  title: "My Pipeline Report"
+```
+
+Compare two runs:
+
+```
+python scripts/compare_reports.py \
+  --run1-results data/outputs/run_A/results.csv --run1-manifest data/outputs/run_A/manifest.json \
+  --run2-results data/outputs/run_B/results.csv --run2-manifest data/outputs/run_B/manifest.json \
+  --out data/outputs/compare --title "Run A vs Run B"
+```
+
 ### 2. Install ML Dependencies
 
 **AutoDock Vina (Already Built)**

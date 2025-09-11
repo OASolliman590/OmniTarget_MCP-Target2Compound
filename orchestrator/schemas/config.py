@@ -178,6 +178,12 @@ class RunConfig(BaseModel):
     compounds: CompoundConfig = Field(description="Compound input configuration")
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     
+    # Visualization configuration (optional)
+    visualization: Optional[Dict[str, Any]] = Field(
+        default_factory=lambda: {"enabled": False},
+        description="Reporting and visualization settings"
+    )
+    
     # Output settings
     output_dir: str = Field(
         default="./data/outputs",

@@ -74,7 +74,8 @@ def read_ligands(paths: Iterable[Path]) -> List[LigandRecord]:
                     if mol is None:
                         continue
                     smi = Chem.MolToSmiles(mol)
-                    name = mol.GetProp('_Name') if mol.HasProp('_Name') else f"{p.stem}_{idx+1}"
+                    # Try to get name from molecule properties, then fall back to filename
+                    name = mol.GetProp('_Name') if mol.HasProp('_Name') else p.stem
                     recs.append({
                         "source_path": str(p),
                         "name": name,

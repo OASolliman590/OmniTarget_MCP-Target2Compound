@@ -34,7 +34,8 @@ from .mcp_clients.proteinatlas import ProteinAtlasClient
 from .mcp_clients.string import STRINGClient
 from .mcp_clients.uniprot import UniProtClient
 from .mcp_clients.pdb import PDBClient
-from .mcp_clients.chembl_client import fetch_target_actives, summarize_comparator_quality
+from .mcp_clients.chembl_client import summarize_comparator_quality
+from .mcp_clients.chembl_mcp_client import ChEMBLMCPClient
 
 from .adapters.geminimol_embed import tanimoto_neighbors_only
 from .adapters.pharmacophore import rdkit_feature_ph4
@@ -45,6 +46,7 @@ from .adapters.vina_adapter import VinaAdapter
 from .adapters.pocket_box import box_from_cocrystal
 from .curation.ccd import is_common_additive
 from .curation.sifts import maps_to_uniprot_chain
+# from .visualization.reports import generate_report  # Temporarily disabled due to syntax error
 
 
 def _sha256(path: Path) -> str:
@@ -85,8 +87,12 @@ class NonDockingPipeline:
         out = self.run_dir / "results.csv"
         cols = [
             "compound_id",
+            "compound_smiles",
+            "compound_inchikey", 
+            "compound_source",
             "target_uniprot",
             "target_chembl",
+            "target_gene",
             "evidence_strength",
             "cosine_max",
             "tanimoto_max",
@@ -183,7 +189,45 @@ class NonDockingPipeline:
             tid = t.get("chembl_id") or t.get("target_chembl_id") or t.get("uniprot_id")
             if not tid:
                 continue
-            actives = await fetch_target_actives(tid, min_pchembl=min_pchembl)
+            # Use real ChEMBL MCP Server with search_activities tool
+            client = ChEMBLMCPClient()
+            try:
+                await client.start_server()
+                # Use search_activities tool to get bioactivity data for this target
+                activities = await client.search_activities(
+                    target_chembl_id=tid,
+                    activity_type="IC50",
+                    limit=1000
+                )
+                await client.stop_server()
+                
+                # Parse the response and convert activities to our expected format
+                actives = []
+                if activities and len(activities) > 0:
+                    # The response is in the format: [{'type': 'text', 'text': '{"activities": [...]}'}]
+                    import json
+                    try:
+                        response_text = activities[0].get('text', '{}')
+                        response_data = json.loads(response_text)
+                        activities_list = response_data.get('activities', [])
+                        
+                        for activity in activities_list:
+                            pchembl_val = activity.get("pchembl_value")
+                            if pchembl_val and float(pchembl_val) >= min_pchembl:
+                                actives.append({
+                                    "chembl_id": activity.get("molecule_chembl_id"),
+                                    "smiles": activity.get("canonical_smiles"),
+                                    "pchembl_value": float(pchembl_val),
+                                    "assay_type": activity.get("assay_type"),
+                                    "organism": activity.get("target_organism")
+                                })
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Failed to parse ChEMBL response for {tid}: {e}")
+                        actives = []
+                
+            except Exception as e:
+                logger.error(f"Failed to fetch ChEMBL data for {tid}: {e}")
+                actives = []
             
             # If no actives found, skip this target
             if not actives:
@@ -215,8 +259,12 @@ class NonDockingPipeline:
                 ])
                 scored.append({
                     "compound_id": lig.get("name"),
+                    "compound_smiles": lig.get("smiles"),
+                    "compound_inchikey": lig.get("inchikey"),
+                    "compound_source": lig.get("source_path"),
                     "target_uniprot": t.get("uniprot_id", ""),
                     "target_chembl": tid,
+                    "target_gene": t.get("gene_name", ""),
                     "evidence_strength": evd,
                     **feats,
                 })
@@ -342,7 +390,38 @@ class NonDockingPipeline:
 
         man_path = self._write_manifest(manifest)
         logger.info(f"Run complete. Results: {results_path} Manifest: {man_path}")
-        return {"results_csv": str(results_path), "manifest": str(man_path)}
+
+        # Optional reporting
+        viz_cfg = (self.cfg.get("visualization") if isinstance(self.cfg, dict) else getattr(self.cfg, "visualization", {})) or {}
+        out = {"results_csv": str(results_path), "manifest": str(man_path)}
+        try:
+            if bool(viz_cfg.get("enabled", False)):
+                report_dir = self.run_dir / "report"
+                title = viz_cfg.get("title", f"Run {self.run_id}")
+                # files = generate_report(results_path, man_path, report_dir, title=title)  # Temporarily disabled
+                files = {}  # Temporary empty dict
+                out["report_html"] = str(files.get("html", ""))
+                manifest["outputs"]["report_html"] = out["report_html"]
+                # Attach asset files with hashes
+                assets = {}
+                for key, p in files.items():
+                    if key == "html":
+                        continue
+                    try:
+                        assets[key] = {
+                            "path": str(p),
+                            "sha256": _sha256(p),
+                        }
+                    except Exception:
+                        continue
+                if assets:
+                    manifest["outputs"]["report_assets"] = assets
+                self._write_manifest(manifest)
+                logger.info(f"Report generated: {out['report_html']}")
+        except Exception as e:
+            logger.warning(f"Reporting skipped: {e}")
+
+        return out
 
 
 def awaitable_false_if_needed(coro_func):

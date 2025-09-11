@@ -56,5 +56,26 @@ docking:
   auto_validate: false       # if true and pdb_id provided, try BioLiP+SIFTS validation
   pdb_id: ""                # optional PDB ID used for BioLiP/SIFTS validation
 
+visualization:
+  enabled: true
+  output_dir: "data/outputs/visualizations"
+  title: "OmniTarget MCP Report"
+  dashboard:
+    enabled: false
+    port: 8050
+    host: "127.0.0.1"
+  plots:
+    formats: ["png", "svg"]
+    dpi: 200
+    style: "seaborn"
+  reports:
+    formats: ["html"]
+    template: "executive"
+    include_molecular: false
+  molecular:
+    viewer: "rdkit"
+    show_pharmacophore: true
+    show_docking: false
+
 disease_terms: ["example"]  # used for discovery; leave as placeholder term
 organism: "Homo sapiens"
