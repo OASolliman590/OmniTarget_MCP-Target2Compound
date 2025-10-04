@@ -78,9 +78,12 @@ def run_nd(
     config_path: str = typer.Argument(..., help="Path to non-docking YAML config"),
     enable_qsar: bool = typer.Option(False, "--enable-qsar", help="Enable QSAR stage (if feasible)"),
     disable_ph4: bool = typer.Option(False, "--disable-ph4", help="Disable pharmacophore features"),
+    enable_e3fp: bool = typer.Option(False, "--enable-e3fp", help="Enable E3FP 3D fingerprints (requires e3fp library)"),
+    enable_geminimol: bool = typer.Option(False, "--enable-geminimol", help="Enable GeminiMol embeddings and PharmProfiler"),
+    enable_ouroboros: bool = typer.Option(False, "--enable-ouroboros", help="Enable Ouroboros Chemical modes"),
     debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
 ):
-    """Run the non-docking pipeline (comparators + similarity + pharmacophore)."""
+    """Run the non-docking pipeline (comparators + similarity + pharmacophore + optional E3FP)."""
 
     # Configure logging
     log_level = "DEBUG" if debug else settings.logging.log_level
@@ -96,10 +99,19 @@ def run_nd(
             cfg.setdefault("scoring", {}).setdefault("weights", {}).setdefault("qsar", 0.15)
         if disable_ph4:
             cfg.setdefault("pharmacophore", {})["method"] = "disabled"
+        if enable_e3fp:
+            cfg.setdefault("similarity", {})["enable_e3fp"] = True
+            cfg.setdefault("scoring", {}).setdefault("weights", {}).setdefault("e3fp", 0.10)
+        if enable_geminimol:
+            cfg.setdefault("representations", {}).setdefault("geminimol", {})["enabled"] = True
+            cfg.setdefault("scoring", {}).setdefault("weights", {}).setdefault("geminimol", 0.25)
+        if enable_ouroboros:
+            cfg.setdefault("ouroboros", {})["enabled"] = True
 
         pipeline = NonDockingPipeline(cfg)
         result = asyncio.run(pipeline.run())
         console.print(f"[green]✓[/green] Non-docking run completed. Results: {result['results_csv']}")
+        console.print(f"[green]✓[/green] Manifest: {result['manifest']}")
     except Exception as e:
         logger.error(f"Non-docking pipeline failed: {e}")
         raise typer.Exit(1)
@@ -224,10 +236,19 @@ def example_config(
         },
         "scoring": {
             "weights": {
-                "similarity": 0.5,
+                "similarity": 0.4,
+                "e3fp": 0.1,
                 "pharmacophore": 0.2,
                 "docking": 0.1,
                 "evidence": 0.2
+            }
+        },
+        "similarity": {
+            "enable_e3fp": False,
+            "e3fp": {
+                "radius": 2,
+                "shells": 5,
+                "top_k": 25
             }
         },
         "output_dir": "data/outputs"

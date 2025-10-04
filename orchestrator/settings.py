@@ -36,6 +36,35 @@ class ModelSettings(BaseSettings):
     vina_num_modes: int = Field(default=9, env="VINA_NUM_MODES")
 
 
+class GeminiMolSettings(BaseSettings):
+    """GeminiMol specific settings."""
+    
+    geminimol_dir: str = Field(default="./third_party/GeminiMol", env="GEMINIMOL_DIR")
+    geminimol: str = Field(default="third_party/GeminiMol", env="GeminiMol")
+    geminimol_app: str = Field(default="third_party/GeminiMol/geminimol", env="geminimol_app")
+    geminimol_lib: str = Field(default="third_party/GeminiMol/models", env="geminimol_lib")
+    geminimol_data: str = Field(default="third_party/GeminiMol/data", env="geminimol_data")
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
+
+
+class OuroborosSettings(BaseSettings):
+    """Ouroboros specific settings."""
+    
+    ouroboros: str = Field(default="third_party/Ouroboros", env="Ouroboros")
+    ouroboros_app: str = Field(default="third_party/Ouroboros/ouroboros", env="ouroboros_app")
+    ouroboros_lib: str = Field(default="third_party/Ouroboros/models", env="ouroboros_lib")
+    ouroboros_dataset: str = Field(default="third_party/Ouroboros/datasets", env="ouroboros_dataset")
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
+
+
 class CacheSettings(BaseSettings):
     """Caching configuration."""
     
@@ -96,6 +125,8 @@ class Settings(BaseSettings):
     # Sub-settings
     mcp: MCPServerSettings = MCPServerSettings()
     models: ModelSettings = ModelSettings()
+    geminimol: GeminiMolSettings = GeminiMolSettings()
+    ouroboros: OuroborosSettings = OuroborosSettings()
     cache: CacheSettings = CacheSettings()
     files: FileSettings = FileSettings()
     logging: LoggingSettings = LoggingSettings()

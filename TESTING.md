@@ -491,11 +491,9 @@ async def test_data_flow():
         print(f'Retrieved sequence length: {len(sequence)}')
         
         // Sequence-based predictor removed
-        deepdta = DeepDTAAdapter()
-        await deepdta.setup()
-        
-        score = await deepdta.predict_affinity('CCO', sequence)
-        print(f'Affinity prediction: {score.predicted_affinity}')
+        # DeepDTA adapter removed from pipeline
+        # Use similarity-based prediction instead
+        print('Affinity prediction: Using similarity-based approach')
     
     await uniprot.close()
 

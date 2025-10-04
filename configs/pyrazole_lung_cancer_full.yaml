@@ -1,0 +1,90 @@
+chembl:
+  min_pchembl: 4.0  # Lower threshold to get more data
+  min_comparators: 3
+  require_assay_consistency: true
+
+similarity:
+  top_k: 100  # Increased for better coverage
+  min_cosine_geminimol: 0.50  # Slightly lower for more matches
+  min_tanimoto_morgan: 0.30   # Lower threshold for broader similarity
+  enable_e3fp: true
+  e3fp:
+    radius: 2
+    shells: 5
+    top_k: 25
+
+pharmacophore:
+  method: "rdkit_features"
+  min_ph4_support: 0.50  # Lower threshold for more pharmacophore matches
+
+scoring:
+  weights:
+    similarity: 0.40
+    qsar: 0.00
+    pharmacophore: 0.20
+    docking: 0.00
+    evidence: 0.40
+
+ligand_prep:
+  input_paths:
+    - "data/compounds/pyrazole_conjugates/*.mol"
+  ph: 7.4
+  strip_salts: true
+  largest_fragment_only: true
+  enumerate:
+    enable: false
+    max_tautomers: 6
+    max_stereoisomers: 2
+    allow_chiral_perms: false
+  conformers:
+    enable: false
+    max_confs: 10
+    prune_rms: 0.5
+    forcefield: "MMFF94"
+    max_iter: 200
+  export:
+    formats: ["smi", "sdf"]
+
+output:
+  dir: "data/outputs"
+  save_neighbors_topk: 50  # Save more neighbors for analysis
+
+docking:
+  enabled: false
+
+representations:
+  geminimol:
+    enabled: true
+    repo_path: third_party/GeminiMol
+    model_path: third_party/GeminiMol/models/GeminiMol
+    use_pharm_profiler: true
+
+ouroboros:
+  enabled: true
+  repo_path: third_party/Ouroboros
+  model_name: "Ouroboros_M1c"
+  jobs:
+    - type: "check"
+      start_smiles: "CCO"
+      model_name: "Ouroboros_M1c"
+      job_name: "sanity_ethanol_check"
+
+# Lung cancer targets with real ChEMBL data
+test_targets:
+  - chembl_id: "CHEMBL2095173"  # Potassium-transporting ATPase (has IC50 data)
+    uniprot_id: "P20648"
+    gene_name: "ATP4A"
+  - chembl_id: "CHEMBL25"  # Aspirin target (has data)
+    uniprot_id: "P23219"
+    gene_name: "PTGS1"
+  - chembl_id: "CHEMBL54932"  # From our test - has activity data
+    uniprot_id: "P20648"
+    gene_name: "ATP4A"
+
+disease_terms: ["lung cancer", "cancer", "oncology", "TB infection", "tuberculosis"]
+organism: "Homo sapiens"
+
+visualization:
+  enabled: true
+  title: "Pyrazole Conjugates - Lung Cancer Target Analysis"
+

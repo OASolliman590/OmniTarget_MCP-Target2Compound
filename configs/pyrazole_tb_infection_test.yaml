@@ -1,25 +1,10 @@
-chembl:
-  min_pchembl: 6.0
-  min_comparators: 3  # Reduced to allow mock data
-  require_assay_consistency: true
+# Test configuration for pyrazole conjugates against TB infection
+# Using the enhanced non-docking pipeline with E3FP, GeminiMol, and Ouroboros
 
-similarity:
-  top_k: 50
-  min_cosine_geminimol: 0.60
-  min_tanimoto_morgan: 0.40
+disease_terms: ["tuberculosis", "TB infection", "Mycobacterium tuberculosis"]
+organism: "Homo sapiens"
 
-pharmacophore:
-  method: "rdkit_features"  # set to "disabled" to turn off
-  min_ph4_support: 0.60
-
-scoring:
-  weights:
-    similarity: 0.40
-    qsar: 0.00
-    pharmacophore: 0.20
-    docking: 0.00  # No docking
-    evidence: 0.40
-
+# Pyrazole conjugates compounds
 ligand_prep:
   input_paths:
     - "data/compounds/pyrazole_conjugates/*.mol"
@@ -30,34 +15,72 @@ ligand_prep:
     enable: false
     max_tautomers: 6
     max_stereoisomers: 2
-    allow_chiral_perms: false
-  conformers:
-    enable: false  # Disable 3D conformers for speed
-    max_confs: 10
-    prune_rms: 0.5
-    forcefield: "MMFF94"
-    max_iter: 200
-  export:
-    formats: ["smi", "sdf"]
 
-output:
-  dir: "data/outputs"
-  save_neighbors_topk: 25
+# Target discovery settings
+max_targets: 25
+ppi:
+  min_confidence: 0.4
+  max_interactions: 1000
 
-docking:
-  enabled: false  # No docking as requested
+expression:
+  min_tissue_expression: 0.1
+  required_tissues: ["lung", "immune system", "lymph nodes"]
 
-# Test targets for TB infection
-test_targets:
-  - chembl_id: "CHEMBL301"
-    uniprot_id: "P9WIQ1"
-    gene_name: "InhA"
-  - chembl_id: "CHEMBL302"
-    uniprot_id: "P9WIQ3"
-    gene_name: "KatG"
-  - chembl_id: "CHEMBL303"
-    uniprot_id: "P9WIQ5"
-    gene_name: "RpoB"
+structures:
+  require_structure: false
+  min_resolution: 3.0
 
-disease_terms: ["tuberculosis", "TB", "Mycobacterium tuberculosis", "pulmonary tuberculosis", "MDR-TB"]
-organism: "Homo sapiens"
+# Enhanced similarity settings
+similarity:
+  top_k: 50
+  min_tanimoto_morgan: 0.25
+  enable_e3fp: true  # Enable E3FP 3D fingerprints
+  e3fp:
+    radius: 2
+    shells: 5
+    top_k: 25
+
+# GeminiMol integration
+representations:
+  geminimol:
+    enabled: true
+    repo_path: third_party/GeminiMol
+    model_path: third_party/GeminiMol/models/GeminiMol
+    use_pharm_profiler: true
+
+# Ouroboros integration (optional)
+ouroboros:
+  enabled: false  # Disable for initial testing
+  repo_path: third_party/Ouroboros
+  model_name: "Ouroboros_M1c"
+  jobs: []
+
+# Pharmacophore settings
+pharmacophore:
+  method: "rdkit_features"
+  min_ph4_support: 0.40
+
+# ChEMBL evidence settings
+chembl:
+  min_pchembl: 6.0
+  min_comparators: 5
+  require_assay_consistency: true
+
+# Enhanced scoring weights
+scoring:
+  weights:
+    morgan_2d: 0.30
+    e3fp: 0.10
+    geminimol: 0.25
+    pharmacophore: 0.25
+    evidence: 0.10
+
+# Output settings
+output_dir: "data/outputs"
+debug_mode: true
+cache_results: true
+
+# Visualization
+visualization:
+  enabled: true
+  title: "Pyrazole Conjugates vs TB Infection Targets"

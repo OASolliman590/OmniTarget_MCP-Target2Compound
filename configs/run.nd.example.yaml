@@ -2,23 +2,41 @@ chembl:
   min_pchembl: 6.0
   min_comparators: 5
   require_assay_consistency: true
+  limit: 200                 # cap activities per target to improve latency
 
 similarity:
   top_k: 50
-  min_cosine_geminimol: 0.60
-  min_tanimoto_morgan: 0.40
+  min_tanimoto_morgan: 0.25    # relaxed for discovery runs
+  enable_e3fp: false           # new; default off until E3FP is installed
+  e3fp:
+    radius: 2
+    shells: 5
+    top_k: 25
+
+representations:
+  geminimol:
+    enabled: true
+    repo_path: third_party/GeminiMol
+    model_path: third_party/GeminiMol/models/GeminiMol   # per README
+    use_pharm_profiler: true
+
+ouroboros:
+  enabled: true                      # generation/analysis is optional
+  repo_path: third_party/Ouroboros
+  model_name: "Ouroboros_M1c"        # example name per authors; change as needed
+  jobs: []                           # list of job dicts; see below
 
 pharmacophore:
   method: "rdkit_features"  # set to "disabled" to turn off
-  min_ph4_support: 0.60
+  min_ph4_support: 0.40     # relaxed for discovery runs
 
 scoring:
   weights:
-    similarity: 0.40
-    qsar: 0.00
-    pharmacophore: 0.20
-    docking: 0.10
-    evidence: 0.30
+    morgan_2d: 0.30
+    e3fp: 0.10
+    geminimol: 0.25
+    pharmacophore: 0.25
+    evidence: 0.10
 
 ligand_prep:
   input_paths:
@@ -47,12 +65,16 @@ output:
 
 docking:
   enabled: false
+  method: "vina"
+  pocket_source: "cocrystal"   # "fpocket" | "p2rank" later if you enable
+  margin_angstrom: 12.0
+  exhaustiveness: 16
+  num_modes: 9
   receptor_pdb_path: ""   # optional: path to PDB/mmCIF for docking when pocket is validated
   cocrystal:
     ligand_resname: ""     # required to define pocket from co-crystal ligand
     chain_id: ""           # optional; used if SIFTS mapping is enforced
     uniprot_id: ""         # optional; used if SIFTS mapping is enforced
-  box_margin: 12.0          # extra Å margin around ligand bounding box
   auto_validate: false       # if true and pdb_id provided, try BioLiP+SIFTS validation
   pdb_id: ""                # optional PDB ID used for BioLiP/SIFTS validation
 

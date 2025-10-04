@@ -1,0 +1,67 @@
+# Test configuration with known targets for lung cancer
+# This demonstrates the full pipeline with real target data
+
+disease_terms: ["lung cancer"]
+organism: "Homo sapiens"
+max_targets: 5
+
+# Test targets - known lung cancer targets with ChEMBL data
+test_targets:
+  - target_id: "EGFR"
+    gene_name: "EGFR"
+    target_chembl: "CHEMBL203"
+    target_uniprot: "P00533"
+    discovery_source: "test"
+    target_type: "protein"
+  - target_id: "KRAS"
+    gene_name: "KRAS"
+    target_chembl: "CHEMBL470"
+    target_uniprot: "P01116"
+    discovery_source: "test"
+    target_type: "protein"
+  - target_id: "TP53"
+    gene_name: "TP53"
+    target_chembl: "CHEMBL2016"
+    target_uniprot: "P04637"
+    discovery_source: "test"
+    target_type: "protein"
+
+ligand_prep:
+  input_paths: ["data/compounds/pyrazole_conjugates/*.mol"]
+  ph: 7.4
+  strip_salts: true
+  largest_fragment_only: true
+  enumerate:
+    enable: false
+    max_tautomers: 6
+    max_stereoisomers: 2
+  conformers:
+    enable: true
+
+# ChEMBL settings
+chembl:
+  min_pchembl: 6.0
+  min_comparators: 5
+  require_assay_consistency: true
+
+# Similarity settings
+similarity:
+  enable_e3fp: true
+  e3fp:
+    radius: 2
+    shells: 5
+    top_k: 25
+
+# Expression filtering
+expression:
+  min_tissue_expression: 0.1
+  required_tissues: ["lung", "respiratory system"]
+
+# PPI settings
+ppi:
+  min_confidence: 0.4
+  max_interactions: 1000
+
+# Output settings
+output_dir: "data/outputs"
+

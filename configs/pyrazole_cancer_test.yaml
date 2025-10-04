@@ -1,7 +1,7 @@
-# Test configuration for pyrazole conjugates against lung cancer
+# Test configuration for pyrazole conjugates against general cancer
 # Using the enhanced non-docking pipeline with E3FP, GeminiMol, and Ouroboros
 
-disease_terms: ["lung cancer"]
+disease_terms: ["cancer", "neoplasms", "tumor"]
 organism: "Homo sapiens"
 
 # Pyrazole conjugates compounds
@@ -17,14 +17,14 @@ ligand_prep:
     max_stereoisomers: 2
 
 # Target discovery settings
-max_targets: 20
+max_targets: 30
 ppi:
   min_confidence: 0.4
-  max_interactions: 1000
+  max_interactions: 1500
 
 expression:
   min_tissue_expression: 0.1
-  required_tissues: ["lung", "respiratory system"]
+  required_tissues: ["liver", "lung", "breast", "colon", "prostate"]
 
 structures:
   require_structure: false
@@ -83,4 +83,6 @@ cache_results: true
 # Visualization
 visualization:
   enabled: true
-  title: "Pyrazole Conjugates vs Lung Cancer Targets"
+  title: "Pyrazole Conjugates vs Cancer Targets"
+
+

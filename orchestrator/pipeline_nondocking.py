@@ -38,7 +38,14 @@ from .mcp_clients.chembl_client import summarize_comparator_quality
 from .mcp_clients.chembl_mcp_client import ChEMBLMCPClient
 
 from .adapters.geminimol_embed import tanimoto_neighbors_only
+from .adapters.geminimol_adapter import compute_geminimol_features
+from .adapters.ouroboros_jobs import run_ouroboros_jobs
 from .adapters.pharmacophore import rdkit_feature_ph4
+from .adapters.e3fp_adapter import (
+    compute_e3fp_for_sdf, 
+    topk_similarity_matrix_e3fp,
+    compute_e3fp_features_for_ligands
+)
 from .io.chem_io import read_ligands, standardize, enumerate_chemistry, generate_3d, export
 from .scoring.evidence import evidence_strength, similarity_features
 from .scoring.fuse_nd import fuse as fuse_scores
@@ -67,7 +74,7 @@ class NonDockingPipeline:
         self.string = STRINGClient()
         self.uniprot = UniProtClient()
         self.pdb = PDBClient()
-        self.output_dir = Path(self.cfg["output"]["dir"]) if isinstance(self.cfg, dict) else Path(self.cfg.output.dir)
+        self.output_dir = Path(self.cfg.get("output_dir", "data/outputs")) if isinstance(self.cfg, dict) else Path(getattr(self.cfg, "output_dir", "data/outputs"))
         self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.run_dir = self.output_dir / f"run_{self.run_id}"
         self.run_dir.mkdir(parents=True, exist_ok=True)
@@ -94,8 +101,22 @@ class NonDockingPipeline:
             "target_chembl",
             "target_gene",
             "evidence_strength",
+            # Comparator diagnostics
+            "n_comparators",
+            "median_pchembl",
+            "assay_consistency",
+            "gate_reason",
+            # Similarity features
             "cosine_max",
             "tanimoto_max",
+            # E3FP features
+            "e3fp_tanimoto_max",
+            "e3fp_tanimoto_mean_topk",
+            # GeminiMol features
+            "gm_cosine_max",
+            "gm_cosine_mean_topk",
+            "gm_profile_score",
+            # Other features
             "ph4_best",
             "qsar_score",
             "docking_score",
@@ -169,8 +190,70 @@ class NonDockingPipeline:
                 targets = test_targets
                 logger.info(f"Using {len(targets)} test targets")
             else:
-                # Integrate real discovery here. For now, skip if services are offline.
-                pass
+                # Real target discovery using MCP services
+                disease_terms = self.cfg.get("disease_terms", []) if isinstance(self.cfg, dict) else getattr(self.cfg, "disease_terms", [])
+                organism = self.cfg.get("organism", "Homo sapiens") if isinstance(self.cfg, dict) else getattr(self.cfg, "organism", "Homo sapiens")
+                max_targets = self.cfg.get("max_targets", 20) if isinstance(self.cfg, dict) else getattr(self.cfg, "max_targets", 20)
+                
+                if disease_terms:
+                    logger.info(f"Discovering targets for diseases: {disease_terms}")
+                    
+                    # Initialize MCP clients
+                    kegg_client = KEGGClient()
+                    reactome_client = ReactomeClient()
+                    
+                    try:
+                        # Get targets from KEGG pathways
+                        kegg_targets = await kegg_client.discover_disease_targets(
+                            disease_terms=disease_terms,
+                            organism="hsa",  # Human
+                            max_pathways_per_disease=10
+                        )
+                        logger.info(f"KEGG discovered {len(kegg_targets)} targets")
+                        
+                        # Get targets from Reactome pathways
+                        reactome_targets = []
+                        for term in disease_terms:
+                            pathways = await reactome_client.search_pathways(term)
+                            for pathway in pathways[:5]:  # Limit to 5 pathways per term
+                                # Extract genes from pathway (simplified)
+                                if pathway.get("genes"):
+                                    for gene in pathway["genes"]:
+                                        reactome_targets.append({
+                                            "target_id": gene,
+                                            "gene_name": gene,
+                                            "discovery_source": "Reactome",
+                                            "discovery_pathway": pathway
+                                        })
+                        logger.info(f"Reactome discovered {len(reactome_targets)} targets")
+                        
+                        # Combine and deduplicate targets
+                        all_targets = kegg_targets + reactome_targets
+                        unique_targets = []
+                        seen_ids = set()
+                        
+                        for target in all_targets:
+                            target_id = target.get("target_id") or target.get("gene_id") or target.get("gene_name")
+                            if target_id and target_id not in seen_ids:
+                                unique_targets.append(target)
+                                seen_ids.add(target_id)
+                        
+                        # Limit targets if specified
+                        if max_targets and len(unique_targets) > max_targets:
+                            unique_targets = unique_targets[:max_targets]
+                            logger.info(f"Limited targets to {max_targets}")
+                        
+                        targets = unique_targets
+                        logger.info(f"Total unique targets discovered: {len(targets)}")
+                        
+                    except Exception as e:
+                        logger.warning(f"Target discovery failed: {e}")
+                        targets = []
+                    finally:
+                        await kegg_client.close()
+                        await reactome_client.close()
+                else:
+                    logger.warning("No disease terms provided for target discovery")
         except Exception as e:
             logger.warning(f"Target discovery skipped: {e}")
         manifest["stages"].append({"stage": "discover_targets", "n_targets": len(targets)})
@@ -181,50 +264,74 @@ class NonDockingPipeline:
         min_pchembl = float(chembl_cfg.get("min_pchembl", 6.0))
         min_comparators = int(chembl_cfg.get("min_comparators", 5))
         require_consistency = bool(chembl_cfg.get("require_assay_consistency", True))
+        chembl_limit = int(chembl_cfg.get("limit", 200))
 
         # If no targets discovered, skip gracefully
         target_list = targets or []
         manifest_targets: List[Dict[str, Any]] = []
+        # Keep per-target comparator SMILES for downstream 3D/2D similarity features
+        per_target_actives_smiles: Dict[str, List[str]] = {}
         for t in target_list:
-            tid = t.get("chembl_id") or t.get("target_chembl_id") or t.get("uniprot_id")
+            tid = t.get("chembl_id") or t.get("target_chembl_id") or t.get("target_chembl") or t.get("uniprot_id")
             if not tid:
                 continue
             # Use real ChEMBL MCP Server with search_activities tool
             client = ChEMBLMCPClient()
             try:
-                await client.start_server()
-                # Use search_activities tool to get bioactivity data for this target
-                activities = await client.search_activities(
-                    target_chembl_id=tid,
-                    activity_type="IC50",
-                    limit=1000
-                )
-                await client.stop_server()
-                
+                # Simple filesystem cache to avoid repeated expensive calls
+                import json as _json
+                cache_dir = Path("data/cache/chembl")
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_key = f"{tid}_IC50_limit{chembl_limit}.json"
+                cache_path = cache_dir / cache_key
+
+                activities_list: List[Dict[str, Any]] = []
+                if cache_path.exists():
+                    try:
+                        activities_list = _json.loads(cache_path.read_text())
+                        logger.info(f"Loaded ChEMBL activities from cache for {tid} ({len(activities_list)})")
+                    except Exception:
+                        activities_list = []
+                if not activities_list:
+                    await client.start_server()
+                    # Use search_activities tool to get bioactivity data for this target
+                    activities = await client.search_activities(
+                        target_chembl_id=tid,
+                        activity_type="IC50",
+                        limit=chembl_limit
+                    )
+                    await client.stop_server()
+                    # The response is in the format: [{'type': 'text', 'text': '{"activities": [...]}'}]
+                    if activities and len(activities) > 0:
+                        try:
+                            response_text = activities[0].get('text', '{}')
+                            response_data = _json.loads(response_text)
+                            activities_list = response_data.get('activities', [])
+                            # Write-through cache
+                            try:
+                                cache_path.write_text(_json.dumps(activities_list))
+                            except Exception:
+                                pass
+                        except Exception as e:
+                            logger.warning(f"Failed to parse ChEMBL response for {tid}: {e}")
+                            activities_list = []
+
                 # Parse the response and convert activities to our expected format
                 actives = []
-                if activities and len(activities) > 0:
-                    # The response is in the format: [{'type': 'text', 'text': '{"activities": [...]}'}]
-                    import json
+                for activity in activities_list or []:
                     try:
-                        response_text = activities[0].get('text', '{}')
-                        response_data = json.loads(response_text)
-                        activities_list = response_data.get('activities', [])
-                        
-                        for activity in activities_list:
-                            pchembl_val = activity.get("pchembl_value")
-                            if pchembl_val and float(pchembl_val) >= min_pchembl:
-                                actives.append({
-                                    "chembl_id": activity.get("molecule_chembl_id"),
-                                    "smiles": activity.get("canonical_smiles"),
-                                    "pchembl_value": float(pchembl_val),
-                                    "assay_type": activity.get("assay_type"),
-                                    "organism": activity.get("target_organism")
-                                })
-                    except (json.JSONDecodeError, KeyError) as e:
-                        logger.warning(f"Failed to parse ChEMBL response for {tid}: {e}")
-                        actives = []
-                
+                        pchembl_val = activity.get("pchembl_value")
+                        if pchembl_val and float(pchembl_val) >= min_pchembl:
+                            actives.append({
+                                "chembl_id": activity.get("molecule_chembl_id"),
+                                "smiles": activity.get("canonical_smiles"),
+                                "pchembl_value": float(pchembl_val),
+                                "assay_type": activity.get("assay_type"),
+                                "organism": activity.get("target_organism")
+                            })
+                    except Exception:
+                        continue
+
             except Exception as e:
                 logger.error(f"Failed to fetch ChEMBL data for {tid}: {e}")
                 actives = []
@@ -241,11 +348,17 @@ class NonDockingPipeline:
                 reason = f"insufficient_comparators({summary['size']} < {min_comparators})"
             if require_consistency and summary["assay_consistency_score"] < 0.5:
                 reason = reason or "low_assay_consistency"
+            # Keep SMILES for E3FP stage and add a concise preview to manifest
+            act_smiles = [a["smiles"] for a in actives if a.get("smiles")]
+            per_target_actives_smiles[tid] = act_smiles
+
             manifest_targets.append({
                 "target": tid,
                 "comparators": summary,
                 "evidence_strength": evd,
                 "gate_reason": reason,
+                "n_actives": len(actives),
+                "actives_preview": act_smiles[:10],
             })
             if reason:
                 continue
@@ -257,6 +370,15 @@ class NonDockingPipeline:
                 feats = similarity_features(q, [
                     {"cosine": None, "tanimoto": n.tanimoto} for n in nbrs
                 ])
+                
+                # Add comparator diagnostics
+                feats.update({
+                    "n_comparators": summary["size"],
+                    "median_pchembl": summary.get("median_pchembl"),
+                    "assay_consistency": summary.get("assay_consistency_score"),
+                    "gate_reason": reason,
+                })
+                
                 scored.append({
                     "compound_id": lig.get("name"),
                     "compound_smiles": lig.get("smiles"),
@@ -286,7 +408,200 @@ class NonDockingPipeline:
                 except Exception:
                     r["ph4_best"] = 0.0
 
-        # 7) Optional docking (gated by validated co-crystal pocket)
+        # 6) E3FP 3D fingerprints (optional)
+        e3fp_enabled = bool(self.cfg.get("similarity", {}).get("enable_e3fp", False)) if isinstance(self.cfg, dict) else False
+        e3fp_summary: Dict[str, Any] = {"enabled": e3fp_enabled}
+        
+        if e3fp_enabled:
+            try:
+                e3fp_cfg = self.cfg.get("similarity", {}).get("e3fp", {}) if isinstance(self.cfg, dict) else {}
+                radius = e3fp_cfg.get("radius", 2)
+                shells = e3fp_cfg.get("shells", 5)
+                top_k = e3fp_cfg.get("top_k", 25)
+
+                # SDF-derived query E3FP if available
+                sdf_files = list(self.run_dir.glob("**/*.sdf"))
+
+                query_e3fp: Dict[str, Any] = {}
+                if sdf_files:
+                    logger.info(f"Computing E3FP fingerprints from {len(sdf_files)} SDF files")
+                    for sdf_file in sdf_files:
+                        try:
+                            fps = compute_e3fp_for_sdf(sdf_file, radius=radius, shells=shells)
+                            query_e3fp.update(fps)
+                        except Exception as e:
+                            logger.warning(f"E3FP computation failed for {sdf_file}: {e}")
+
+                # Fallback to SMILES if SDF route produced no fingerprints
+                if not query_e3fp:
+                    from .adapters.e3fp_adapter import compute_e3fp_features_for_ligands as _e3fp_from_smiles
+                    smiles_list = [lig.get("smiles") for lig in ligs if lig.get("smiles")]
+                    names_list = [lig.get("name") for lig in ligs if lig.get("smiles")]
+                    try:
+                        query_e3fp = _e3fp_from_smiles(smiles_list, names_list, radius=radius, shells=shells)
+                    except Exception as e:
+                        logger.warning(f"E3FP fallback from SMILES failed: {e}")
+                        query_e3fp = {}
+
+                # Reference E3FP per target from comparator SMILES
+                per_target_ref_e3fp: Dict[str, Dict[str, Any]] = {}
+                from .adapters.e3fp_adapter import compute_e3fp_features_for_ligands as _e3fp_from_smiles
+                for tid_key, smiles_list in per_target_actives_smiles.items():
+                    if not smiles_list:
+                        continue
+                    names = [f"{tid_key}_ref_{i}" for i in range(len(smiles_list))]
+                    try:
+                        ref_fps = _e3fp_from_smiles(smiles_list, names, radius=radius, shells=shells)
+                        per_target_ref_e3fp[tid_key] = ref_fps
+                    except Exception as e:
+                        logger.warning(f"E3FP ref computation failed for {tid_key}: {e}")
+
+                # Use top-k similarities per target to populate record features
+                if query_e3fp and per_target_ref_e3fp:
+                    from .adapters.e3fp_adapter import topk_similarity_matrix_e3fp as _e3fp_topk
+                    per_target_sim_maps: Dict[str, Dict[str, Dict[str, Any]]] = {}
+                    for tid_key, ref_map in per_target_ref_e3fp.items():
+                        try:
+                            per_target_sim_maps[tid_key] = _e3fp_topk(query_e3fp, ref_map, k=top_k)
+                        except Exception as e:
+                            logger.warning(f"E3FP similarity failed for {tid_key}: {e}")
+                            per_target_sim_maps[tid_key] = {}
+
+                    updated, missing = 0, 0
+                    for r in scored:
+                        compound_name = r.get("compound_id", "")
+                        tid_key = r.get("target_chembl") or r.get("target_uniprot") or ""
+                        sim_map = per_target_sim_maps.get(tid_key, {})
+                        if compound_name in sim_map:
+                            r["e3fp_tanimoto_max"] = sim_map[compound_name].get("e3fp_tanimoto_max")
+                            r["e3fp_tanimoto_mean_topk"] = sim_map[compound_name].get("e3fp_tanimoto_mean_topk")
+                            updated += 1
+                        else:
+                            r["e3fp_tanimoto_max"] = None
+                            r["e3fp_tanimoto_mean_topk"] = None
+                            missing += 1
+
+                    e3fp_summary.update({
+                        "radius": radius,
+                        "shells": shells,
+                        "top_k": top_k,
+                        "n_query": len(query_e3fp),
+                        "n_ref_sets": len(per_target_ref_e3fp),
+                        "updated_records": updated,
+                        "missing_records": missing,
+                        "note": "E3FP computed from 3D SDF or SMILES fallback"
+                    })
+                else:
+                    # Fallback: populate e3fp_* via 2D Morgan similarity
+                    logger.warning("E3FP fingerprints unavailable; falling back to 2D Morgan for e3fp_* features")
+                    from .adapters.geminimol_embed import tanimoto_neighbors_only as _tan_only
+                    for r in scored:
+                        tid_key = r.get("target_chembl") or r.get("target_uniprot") or ""
+                        comp_smiles = per_target_actives_smiles.get(tid_key, [])
+                        q = r.get("compound_smiles")
+                        if not q or not comp_smiles:
+                            r["e3fp_tanimoto_max"] = None
+                            r["e3fp_tanimoto_mean_topk"] = None
+                            continue
+                        nbrs = _tan_only(q, comp_smiles, k=top_k)
+                        if nbrs:
+                            scores = [n.tanimoto for n in nbrs if n.tanimoto is not None]
+                            r["e3fp_tanimoto_max"] = max(scores) if scores else 0.0
+                            r["e3fp_tanimoto_mean_topk"] = (sum(scores) / len(scores)) if scores else 0.0
+                        else:
+                            r["e3fp_tanimoto_max"] = 0.0
+                            r["e3fp_tanimoto_mean_topk"] = 0.0
+
+                    e3fp_summary.update({
+                        "radius": radius,
+                        "shells": shells,
+                        "top_k": top_k,
+                        "fallback": "2d_morgan",
+                        "note": "E3FP not available; populated via 2D Tanimoto vs comparators"
+                    })
+            except Exception as e:
+                logger.warning(f"E3FP computation failed: {e}")
+                e3fp_summary["note"] = f"E3FP computation failed: {str(e)}"
+        else:
+            # Add None values for E3FP features when disabled
+            for r in scored:
+                r["e3fp_tanimoto_max"] = None
+                r["e3fp_tanimoto_mean_topk"] = None
+
+        # 7) GeminiMol embeddings and PharmProfiler (optional)
+        geminimol_cfg = self.cfg.get("representations", {}).get("geminimol", {}) if isinstance(self.cfg, dict) else {}
+        geminimol_enabled = bool(geminimol_cfg.get("enabled", False))
+        geminimol_summary: Dict[str, Any] = {"enabled": geminimol_enabled}
+        
+        if geminimol_enabled:
+            try:
+                repo_path = geminimol_cfg.get("repo_path", "third_party/GeminiMol")
+                model_path = geminimol_cfg.get("model_path", "third_party/GeminiMol/models/GeminiMol")
+                use_pharm_profiler = geminimol_cfg.get("use_pharm_profiler", True)
+                
+                # Get query SMILES
+                query_smiles = [lig.get("smiles") for lig in ligs if lig.get("smiles")]
+                query_names = [lig.get("name", f"mol_{i}") for i, lig in enumerate(ligs) if lig.get("smiles")]
+                
+                # Get reference SMILES and labels from ChEMBL actives
+                ref_smiles = []
+                ref_labels = []
+                for target_data in manifest_targets:
+                    if target_data.get("gate_reason"):
+                        continue
+                    # Get comparator SMILES from the target's actives
+                    # This would need to be passed through from the comparator building stage
+                    # For now, use placeholder
+                    pass
+                
+                if query_smiles and ref_smiles:
+                    logger.info(f"Computing GeminiMol features for {len(query_smiles)} query molecules")
+                    geminimol_features = compute_geminimol_features(
+                        query_smiles=query_smiles,
+                        ref_smiles=ref_smiles,
+                        ref_labels=ref_labels,
+                        repo_path=repo_path,
+                        model_path=model_path,
+                        output_dir=self.run_dir / "third_party",
+                        use_pharm_profiler=use_pharm_profiler
+                    )
+                    
+                    # Add GeminiMol features to scored records
+                    for r in scored:
+                        compound_smiles = r.get("compound_smiles")
+                        if compound_smiles in geminimol_features:
+                            features = geminimol_features[compound_smiles]
+                            r["gm_cosine_max"] = features.get("gm_cosine_max")
+                            r["gm_cosine_mean_topk"] = features.get("gm_cosine_mean_topk")
+                            r["gm_profile_score"] = features.get("gm_profile_score")
+                        else:
+                            r["gm_cosine_max"] = None
+                            r["gm_cosine_mean_topk"] = None
+                            r["gm_profile_score"] = None
+                    
+                    geminimol_summary.update({
+                        "repo_path": repo_path,
+                        "model_path": model_path,
+                        "use_pharm_profiler": use_pharm_profiler,
+                        "n_query": len(query_smiles),
+                        "n_ref": len(ref_smiles),
+                        "note": "computed embeddings and PharmProfiler scores"
+                    })
+                else:
+                    logger.warning("GeminiMol computation skipped - insufficient data")
+                    geminimol_summary["note"] = "insufficient query or reference data"
+                    
+            except Exception as e:
+                logger.warning(f"GeminiMol computation failed: {e}")
+                geminimol_summary["note"] = f"GeminiMol computation failed: {str(e)}"
+        else:
+            # Add None values for GeminiMol features when disabled
+            for r in scored:
+                r["gm_cosine_max"] = None
+                r["gm_cosine_mean_topk"] = None
+                r["gm_profile_score"] = None
+
+        # 8) Optional docking (gated by validated co-crystal pocket)
         docking_cfg = (self.cfg.get("docking") if isinstance(self.cfg, dict) else getattr(self.cfg, "docking", {})) or {}
         docking_enabled = bool(docking_cfg.get("enabled", False))
         docking_summary: Dict[str, Any] = {"enabled": docking_enabled}
@@ -372,10 +687,60 @@ class NonDockingPipeline:
                     # More negative energy is better; convert to positive score by negation
                     rec["docking_score"] = float(-1.0 * drec["binding_energy"])
 
-        # 8) Fuse and write outputs (now includes optional docking)
+        # 8) Ouroboros Chemical modes (optional, after baseline target ID)
+        ouroboros_cfg = self.cfg.get("ouroboros", {}) if isinstance(self.cfg, dict) else {}
+        ouroboros_enabled = bool(ouroboros_cfg.get("enabled", False))
+        ouroboros_summary: Dict[str, Any] = {"enabled": ouroboros_enabled}
+        
+        if ouroboros_enabled:
+            try:
+                repo_path = ouroboros_cfg.get("repo_path", "third_party/Ouroboros")
+                model_name = ouroboros_cfg.get("model_name", "Ouroboros_M1c")
+                jobs = ouroboros_cfg.get("jobs", [])
+                
+                if jobs:
+                    logger.info(f"Running {len(jobs)} Ouroboros jobs")
+                    ouroboros_results = run_ouroboros_jobs(
+                        jobs=jobs,
+                        repo_path=repo_path,
+                        output_dir=self.run_dir / "third_party"
+                    )
+                    
+                    ouroboros_summary.update({
+                        "repo_path": repo_path,
+                        "model_name": model_name,
+                        "n_jobs": len(jobs),
+                        "successful_jobs": ouroboros_results.get("successful_jobs", 0),
+                        "failed_jobs": ouroboros_results.get("failed_jobs", 0),
+                        "note": "generation experiments completed separately from baseline ranking"
+                    })
+                else:
+                    logger.info("Ouroboros enabled but no jobs configured")
+                    ouroboros_summary["note"] = "no jobs configured"
+                    
+            except Exception as e:
+                logger.warning(f"Ouroboros jobs failed: {e}")
+                ouroboros_summary["note"] = f"Ouroboros jobs failed: {str(e)}"
+
+        # 9) Fuse and write outputs (now includes optional docking)
         weights = self.cfg.get("scoring", {}).get("weights") if isinstance(self.cfg, dict) else self.cfg.scoring.weights
         fused = fuse_scores(scored, weights or {}) if scored else []
         results_path = self._write_results(fused)
+
+        manifest["stages"].append({
+            "stage": "e3fp",
+            **e3fp_summary,
+        })
+
+        manifest["stages"].append({
+            "stage": "geminimol",
+            **geminimol_summary,
+        })
+
+        manifest["stages"].append({
+            "stage": "ouroboros",
+            **ouroboros_summary,
+        })
 
         manifest["stages"].append({
             "stage": "fuse_scores",

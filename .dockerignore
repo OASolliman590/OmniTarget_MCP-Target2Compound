@@ -1,0 +1,27 @@
+# Global Docker ignore to speed up builds and avoid sending huge contexts
+
+# VCS and OS files
+.git
+.gitignore
+.DS_Store
+*.log
+__pycache__/
+.pytest_cache/
+
+# Large or generated data
+data/outputs/
+data/cache/
+data/temp/
+test_output/
+
+# Third-party heavy code and models are not needed in orchestrator image
+third_party/
+
+# Node modules anywhere
+**/node_modules/
+**/build/
+
+# Python venvs
+venv/
+.venv/
+

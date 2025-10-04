@@ -20,25 +20,25 @@ Non-docking target prediction is the default workflow. Comparator evidence (ChEM
 - ✅ **Reproducible** - complete provenance tracking and versioning
 - ✅ **Scalable** - async processing, caching, and containerized services
 
-## 📊 Current Status: **FULLY FUNCTIONAL WITH MCP SERVICES** ✅
+## 📊 Current Status: **ENHANCED WITH E3FP, GEMINIMOL & OUROBOROS** ✅
 
-### ✅ **Completed Components**
-- **Environment Setup**: Conda environment with Python 3.11 and all dependencies
-- **AutoDock Vina**: Successfully built from source (v1.2.7-20-g93cdc3d-mod)
-- **ML Adapters**: GeminiMol, Vina, Ouroboros working
-- **Real Compounds**: 11 sertraline compounds loaded and validated
-- **Scoring System**: Normalization and fusion working correctly
-- **Configuration**: Test config validated for sertraline compounds
-- **MCP Servers**: All 6 services running and responding correctly
-- **End-to-End Pipeline**: Fully functional with real compounds and MCP integration
+### ✅ **Ready Components**
+- **E3FP 3D Fingerprints**: Fully installed and operational (v1.2.7)
+- **Basic Pipeline**: Non-docking with Morgan 2D, pharmacophore, evidence scoring
+- **MCP Services**: All 6 services running and responding correctly
+- **Soft Failure Design**: Graceful handling of missing dependencies
 
-### 🎯 **Fully Operational**
-- Target discovery with disease terms (depression, anxiety, OCD)
-- Full pipeline with real sertraline compounds
-- Molecular docking and affinity prediction
-- All MCP services providing live data integration
+### ✅ **Model & Config Status**
+- **GeminiMol**: Repo present, model weights placed, env vars added; example config enables it
+- **Ouroboros**: Repo present, model placed, Chemical* scripts detected; example config enables it
 
-📋 **For detailed status information, see [STATUS.md](STATUS.md)**
+### 🎯 **Enhanced Capabilities**
+- **Multi-channel Similarity**: Morgan 2D + E3FP 3D + GeminiMol embeddings
+- **Target Identification**: PharmProfiler integration for ligand-based prediction
+- **Chemical Generation**: Ouroboros Chemical modes for directed evolution
+- **Configurable Weights**: Balanced fusion scoring across all channels
+
+📋 **For setup instructions and model placement, see [docs/Setup_Guide.md](docs/Setup_Guide.md)**
 
 ## 🏗️ Architecture
 
@@ -204,11 +204,9 @@ EOF
 ### 4. Configure Environment
 
 ```bash
-# Copy example environment file
-cp .env.example .env
-
-# Edit .env to set MCP server URLs and other settings
-vim .env
+# An `.env` is provided with sensible defaults incl. GeminiMol/Ouroboros paths
+# Edit it to adjust paths or add API keys
+${EDITOR:-vi} .env
 ```
 
 ### 5. Start MCP Services and Run Pipeline

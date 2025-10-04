@@ -2,12 +2,12 @@
 Adapters for integrating ML models and tools.
 """
 
-from .geminimol_adapter import GeminiMolAdapter
+from .geminimol_adapter import compute_geminimol_features
+from .ouroboros_jobs import run_ouroboros_jobs
 from .vina_adapter import VinaAdapter
-from .ouroboros_adapter import OuroborosAdapter
 
 __all__ = [
-    "GeminiMolAdapter", 
+    "compute_geminimol_features", 
+    "run_ouroboros_jobs",
     "VinaAdapter",
-    "OuroborosAdapter",
 ]

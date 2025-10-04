@@ -202,7 +202,7 @@ compounds:
 max_targets: 3
 scoring:
   weights:
-    deepdta: 0.6
+    # deepdta: 0.6  # Removed from pipeline
     docking: 0.3
     evidence: 0.1
 output_dir: "data/outputs/test"
@@ -324,7 +324,7 @@ python3 scripts/demo_testing.py
 
 # Test specific components
 python3 scripts/test_component.py mcp kegg
-python3 scripts/test_component.py adapter deepdta
+python3 scripts/test_component.py adapter geminimol
 python3 scripts/test_component.py scoring normalization
 ```
 
